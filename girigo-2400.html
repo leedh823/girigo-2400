@@ -1,0 +1,3084 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>기리고 : 24:00</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Serif+KR:wght@300;400&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+
+<style>
+/* ─── CSS 변수 ─────────────────────────────────────── */
+:root {
+  --bg-deep:     #050508;
+  --bg-phone:    #0a0a0f;
+  --surface:     #111118;
+  --border:      rgba(255,255,255,0.07);
+  --text:        #e8e0d5;
+  --text-dim:    #7a7370;
+  --accent-red:  #c8382a;
+  --accent-glow: rgba(200,56,42,0.3);
+  --ghost-color: rgba(200,56,42,0.6);
+  --exit-color:  #4a9eff;
+  --item-color:  #f0c040;
+
+  --phone-w: 390px;
+  --phone-h: 760px;
+  --bezel:   14px;
+  --radius:  44px;
+}
+
+/* ─── 전역 리셋 ────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* ─── 스마트폰 외부 래퍼 ───────────────────────────── */
+#phone-outer {
+  position: relative;
+  width:  calc(var(--phone-w) + var(--bezel) * 2);
+  height: calc(var(--phone-h) + var(--bezel) * 2);
+  background: #1a1a22;
+  border-radius: var(--radius);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 0 60px rgba(0,0,0,0.9),
+    inset 0 0 0 1px rgba(255,255,255,0.03);
+  flex-shrink: 0;
+}
+
+/* 전원 버튼 */
+#phone-outer::before {
+  content: '';
+  position: absolute;
+  right: -3px; top: 120px;
+  width: 3px; height: 52px;
+  background: #222230;
+  border-radius: 0 3px 3px 0;
+}
+/* 볼륨 버튼 */
+#phone-outer::after {
+  content: '';
+  position: absolute;
+  left: -3px; top: 100px;
+  width: 3px; height: 88px;
+  background: #222230;
+  border-radius: 3px 0 0 3px;
+}
+
+/* ─── 스마트폰 화면 ────────────────────────────────── */
+#phone-screen {
+  position: absolute;
+  inset: var(--bezel);
+  border-radius: calc(var(--radius) - var(--bezel));
+  background: var(--bg-phone);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ─── Dynamic Island ──────────────────────────────── */
+#notch {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 128px; height: 36px;
+  background: #000;
+  border-radius: 50px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 11px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 2px 12px rgba(0,0,0,0.9),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+/* Face ID 센서 영역 */
+#notch::before {
+  content: '';
+  width: 9px; height: 9px;
+  background: radial-gradient(circle at 38% 38%, #1c1c1c, #050505);
+  border-radius: 50%;
+  box-shadow: 0 0 4px 1px rgba(80,160,255,0.18), 0 0 0 1px #1a1a1a;
+}
+#notch .camera {
+  width: 12px; height: 12px;
+  background: radial-gradient(circle at 35% 35%, #222, #080808);
+  border-radius: 50%;
+  border: 1px solid #1e1e1e;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.08),
+    0 0 0 2px rgba(255,255,255,0.03),
+    0 0 6px rgba(80,160,255,0.12);
+}
+
+/* ─── 씬 공통 ─────────────────────────────────────── */
+.scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  overflow: hidden;
+}
+.scene.active {
+  opacity: 1;
+  pointer-events: all;
+}
+.scene.slide-in {
+  animation: slideIn 0.4s ease forwards;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.scene.fade-in {
+  animation: fadeIn 0.6s ease forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes redFlash {
+  0%   { background: var(--bg-phone); }
+  20%  { background: rgba(200,56,42,0.6); }
+  40%  { background: var(--bg-phone); }
+  60%  { background: rgba(200,56,42,0.4); }
+  100% { background: var(--bg-phone); }
+}
+
+/* ─── 공통 버튼 ───────────────────────────────────── */
+.btn {
+  display: inline-block;
+  padding: 14px 32px;
+  border: 1px solid var(--accent-red);
+  background: transparent;
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-red);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.btn:hover::before { opacity: 0.15; }
+.btn:hover { box-shadow: 0 0 16px var(--accent-glow); }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: var(--text-dim); }
+
+/* 타이핑 커서 */
+.typing-cursor::after {
+  content: '|';
+  animation: blink 0.7s step-end infinite;
+  color: var(--accent-red);
+}
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
+
+/* 상태바 */
+.status-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  padding: 0 22px 0;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 6px;
+  justify-content: space-between;
+  z-index: 50;
+  pointer-events: none;
+}
+.status-bar .time-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+.status-bar .icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.status-bar .sb-signal { display:flex; align-items:flex-end; gap:1.5px; }
+.status-bar .sb-signal span {
+  display:inline-block; width:3px; background:var(--text); border-radius:1px;
+}
+
+/* 그리드 배경 */
+.grid-bg {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(200,56,42,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,56,42,0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+/* ─── 인트로 스플래시 오버레이 ────────────────────── */
+
+/* 전체 인트로 래퍼 — 모든 씬 위에 */
+#intro-splash {
+  position: absolute;
+  inset: 0;
+  z-index: 800;
+  overflow: hidden;
+  background: #000;
+  border-radius: calc(var(--radius) - var(--bezel));
+}
+
+/* ── 잠금화면 ── */
+#lock-screen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, #070710 0%, #0d0a18 50%, #0a0808 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  opacity: 0;        /* 처음엔 투명 — JS가 fade-in 시킴 */
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* 잠금화면 별빛 */
+#lock-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 60% 25%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 35% 60%, rgba(255,255,255,0.25) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70% 55%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 15% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 75%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 50% 40%, rgba(200,56,42,0.3) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.lock-time {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 64px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.88);
+  letter-spacing: -2px;
+  line-height: 1;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.6);
+}
+.lock-date {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 2px;
+  margin-top: 8px;
+  margin-bottom: 60px;
+}
+.lock-swipe-hint {
+  position: absolute;
+  bottom: 60px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 2px;
+  animation: swipeHintPulse 2s ease-in-out infinite;
+}
+@keyframes swipeHintPulse {
+  0%,100%{opacity:0.3; transform:translateY(0);}
+  50%    {opacity:0.7; transform:translateY(-4px);}
+}
+.lock-swipe-hint::after { content: ' ↑'; }
+
+/* ── 홈화면 ── */
+#home-screen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(175deg, #08080f 0%, #0c0a14 45%, #0f0810 100%);
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  will-change: transform, opacity;
+}
+#home-screen.show { opacity: 1; pointer-events: all; }
+
+#home-screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 220px 180px at 25% 20%, rgba(200,56,42,0.05) 0%, transparent 70%),
+    radial-gradient(ellipse 180px 200px at 75% 75%, rgba(80,40,160,0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 홈 상태바 */
+.home-statusbar {
+  padding: 14px 20px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; height: 52px; position: relative; z-index: 2;
+}
+.home-statusbar .hs-time { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.88); letter-spacing: 0.5px; }
+.home-statusbar .hs-icons { font-size: 11px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 5px; }
+
+/* 앱 그리드 (4열 고정) */
+.home-app-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-content: start;
+  padding: 18px 16px 0;
+  gap: 14px 2px;
+  position: relative; z-index: 2;
+}
+
+/* 앱 셀 */
+.app-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  opacity: 0; transform: scale(0.82) translateY(6px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  cursor: default; -webkit-tap-highlight-color: transparent;
+}
+.app-cell.reveal { opacity: 1; transform: scale(1) translateY(0); }
+
+.app-icon-box {
+  width: 52px; height: 52px;
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+}
+.app-icon-box .app-icon-svg {
+  width: 22px; height: 22px;
+  display: block; flex-shrink: 0;
+}
+.app-icon-box::after {
+  content: '';
+  position: absolute; inset: 0; border-radius: 13px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.18);
+}
+.app-cell-label {
+  font-size: 9.5px; color: rgba(255,255,255,0.62);
+  letter-spacing: 0.1px; text-align: center; white-space: nowrap;
+}
+
+/* 기리고 앱 셀 — 특별 스타일 */
+#cell-girigo { cursor: pointer; }
+#cell-girigo .app-icon-box {
+  background: linear-gradient(145deg, #220b0b, #350f0f);
+  border: 1px solid rgba(200,56,42,0.5);
+  box-shadow:
+    0 3px 14px rgba(0,0,0,0.55),
+    0 0 18px rgba(200,56,42,0.18),
+    inset 0 1px 0 rgba(255,255,255,0.09);
+  animation: girigoPulse 3s ease-in-out infinite;
+}
+@keyframes girigoPulse {
+  0%,100%{ box-shadow: 0 3px 14px rgba(0,0,0,0.55), 0 0 12px rgba(200,56,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09); }
+  50%    { box-shadow: 0 3px 14px rgba(0,0,0,0.55), 0 0 24px rgba(200,56,42,0.3),  inset 0 1px 0 rgba(255,255,255,0.09); }
+}
+#cell-girigo .app-icon-box svg { width: 28px; height: 28px; }
+#cell-girigo .app-cell-label { color: rgba(255,255,255,0.88); font-weight: 700; }
+
+/* 독 */
+.home-dock {
+  margin: 10px 18px 22px;
+  background: rgba(255,255,255,0.065);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 22px;
+  padding: 10px 12px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+  flex-shrink: 0; position: relative; z-index: 2;
+  opacity: 0; transition: opacity 0.3s ease 0.1s;
+}
+.home-dock.reveal { opacity: 1; }
+
+/* ── 터치 인디케이터 ── */
+#touch-indicator {
+  position: absolute;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 1.5px solid rgba(255,255,255,0.45);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 200;
+  /* left/top은 JS에서 동적으로 설정 */
+  transform: translate(-50%,-50%) scale(1.2);
+}
+#touch-indicator.appear {
+  animation: touchAppear 0.28s cubic-bezier(0.2,0,0.4,1) forwards;
+}
+#touch-indicator.press {
+  animation: touchPress 0.24s cubic-bezier(0.4,0,0.6,1) forwards;
+}
+@keyframes touchAppear {
+  from { opacity: 0; transform: translate(-50%,-50%) scale(1.35); }
+  to   { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+}
+@keyframes touchPress {
+  0%   { opacity: 1;   transform: translate(-50%,-50%) scale(1);    background: rgba(255,255,255,0.15); }
+  45%  { opacity: 0.85; transform: translate(-50%,-50%) scale(0.68); background: rgba(255,255,255,0.28); }
+  100% { opacity: 0;   transform: translate(-50%,-50%) scale(0.6); }
+}
+
+/* ── 앱 내부 로딩 스플래시 ── */
+#app-splash {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+#app-splash.show { opacity: 1; }
+#app-splash.fadeout {
+  animation: splashFadeOut 0.6s ease forwards;
+}
+@keyframes splashFadeOut {
+  to { opacity: 0; }
+}
+
+.splash-icon {
+  width: 72px; height: 72px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1c0808, #2e0e0e);
+  border: 1px solid rgba(200,56,42,0.4);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 20px;
+  box-shadow: 0 0 40px rgba(200,56,42,0.25);
+  animation: splashIconIn 0.5s cubic-bezier(0.2,0.8,0.4,1) both;
+}
+@keyframes splashIconIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.splash-icon svg { width: 38px; height: 38px; }
+
+.splash-title {
+  font-family: 'Black Han Sans', sans-serif;
+  font-size: 26px;
+  color: #e8e0d5;
+  letter-spacing: 6px;
+  animation: splashTextIn 0.5s ease 0.1s both;
+}
+@keyframes splashTextIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.splash-sub {
+  font-size: 10px;
+  color: rgba(200,56,42,0.6);
+  letter-spacing: 3px;
+  margin-top: 6px;
+  margin-bottom: 36px;
+  animation: splashTextIn 0.5s ease 0.2s both;
+}
+
+/* 로딩 바 */
+.splash-bar-wrap {
+  width: 120px; height: 2px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  animation: splashTextIn 0.4s ease 0.3s both;
+}
+.splash-bar-fill {
+  height: 100%;
+  background: var(--accent-red);
+  border-radius: 2px;
+  width: 0%;
+  animation: splashBarLoad 1.2s ease 0.4s forwards;
+}
+@keyframes splashBarLoad {
+  0%  { width: 0%; }
+  30% { width: 45%; }
+  70% { width: 75%; }
+  90% { width: 90%; }
+  100%{ width: 100%; }
+}
+
+/* ── 화면 켜지는 효과 ── */
+#screen-on-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  border-radius: inherit;
+}
+#screen-on-flash.play {
+  animation: screenOnFlash 0.5s ease forwards;
+}
+@keyframes screenOnFlash {
+  0%  { opacity: 0; }
+  15% { opacity: 0.4; }
+  40% { opacity: 0.15; }
+  100%{ opacity: 0; }
+}
+
+/* ─── 스캔라인 CRT 오버레이 (SCENE 0, 2 공용) ─────── */
+.scanlines {
+  position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.07) 2px,
+    rgba(0,0,0,0.07) 4px
+  );
+  animation: scanMove 8s linear infinite;
+}
+@keyframes scanMove {
+  from { background-position: 0 0; }
+  to   { background-position: 0 100px; }
+}
+/* 빠른 스캔 라인 스윕 */
+.scanlines::after {
+  content: '';
+  position: absolute; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(transparent, rgba(200,56,42,0.03), transparent);
+  animation: scanSweep 4s ease-in-out infinite;
+}
+@keyframes scanSweep {
+  0%   { top: -60px; }
+  100% { top: 110%; }
+}
+
+/* 인트로 텍스트 강조 단어 */
+.text-red   { color: var(--accent-red) !important; }
+.text-white { color: var(--text) !important; }
+
+/* ─── SCENE 0 — 한 줄씩 등장 레이아웃 ──────────── */
+#scene-0 {
+  background: #000;
+  padding: 0 28px;
+  text-align: center;
+  justify-content: flex-start;  /* 위에서 아래로 쌓기 */
+}
+#scene-0 .app-icon {
+  width: 72px; height: 72px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1a0808, #2a0d0d);
+  border: 1px solid rgba(200,56,42,0.4);
+  display: flex; align-items: center; justify-content: center;
+  margin: 64px auto 20px;    /* Dynamic Island 높이(47px) + 여백 */
+  box-shadow: 0 0 30px rgba(200,56,42,0.25);
+  animation: iconPulse 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes iconPulse {
+  0%,100%{box-shadow:0 0 20px rgba(200,56,42,0.2)}
+  50%    {box-shadow:0 0 40px rgba(200,56,42,0.45)}
+}
+#scene-0 .app-icon svg { width: 40px; height: 40px; }
+#scene-0 .app-name {
+  font-family: 'Black Han Sans', sans-serif;
+  font-size: 28px; color: var(--text); letter-spacing: 6px;
+  margin-bottom: 5px; flex-shrink: 0;
+}
+#scene-0 .app-name-sub {
+  font-size: 10px; color: var(--text-dim); letter-spacing: 3px;
+  margin-bottom: 0; flex-shrink: 0;
+}
+
+/* 텍스트 표시 영역 — 전체 블록 페이드인 */
+#scene-0 .intro-text {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 20px 0 100px; /* 하단 버튼 공간 확보 */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  opacity: 0;
+  animation: introBlockFadeIn 0.65s ease forwards;
+  animation-delay: 0.1s;
+}
+
+/* 각 줄 — 즉시 표시 */
+#scene-0 .intro-line-item {
+  font-family: 'Noto Serif KR', serif;
+  font-weight: 300;
+  font-size: 14.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  line-height: 1.65;
+  text-align: center;
+  width: 100%;
+}
+#scene-0 .intro-line-item.text-red   {
+  color: var(--accent-red);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+#scene-0 .intro-line-item.text-white {
+  color: var(--text);
+  font-family: 'Black Han Sans', sans-serif;
+  font-size: 17px;
+  letter-spacing: 4px;
+}
+/* 그룹 사이 여백 */
+#scene-0 .intro-spacer { height: 10px; }
+
+@keyframes introBlockFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 버튼 — 화면 하단 고정 */
+#scene-0 .btn-wrap {
+  position: absolute;
+  bottom: 44px; left: 28px; right: 28px;
+  opacity: 0; transition: opacity 0.7s;
+}
+#scene-0 .btn-wrap.visible { opacity: 1; }
+
+/* ─── SCENE 1 ─────────────────────────────────────── */
+#scene-1 {
+  background: var(--bg-phone);
+  padding: 68px 28px 40px;  /* status-bar 52px + 16px 여백 */
+  text-align: center;
+}
+#scene-1 .red-overlay {
+  position: absolute; inset: 0;
+  background: rgba(200,56,42,0);
+  pointer-events: none; transition: background 0.3s; z-index: 1;
+}
+#scene-1 .logo {
+  font-family: 'Black Han Sans', sans-serif;
+  font-size: 22px; color: var(--text); letter-spacing: 4px; margin-bottom: 8px;
+  position: relative; z-index: 2;
+}
+#scene-1 .logo-sub {
+  font-size: 10px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 48px;
+  position: relative; z-index: 2;
+}
+#scene-1 .wish-form { width: 100%; position: relative; z-index: 2; }
+#scene-1 .wish-label {
+  font-size: 12px; color: var(--text-dim); letter-spacing: 1px;
+  margin-bottom: 10px; display: block; text-align: left;
+}
+#scene-1 .wish-input {
+  width: 100%;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 14px 16px; color: var(--text);
+  font-family: 'Noto Serif KR', serif; font-size: 14px; font-weight: 300;
+  resize: none; height: 120px; outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  caret-color: var(--accent-red);
+}
+#scene-1 .wish-input::placeholder { color: var(--text-dim); font-style: italic; }
+#scene-1 .wish-input:focus {
+  border-color: rgba(200,56,42,0.5);
+  box-shadow: 0 0 12px rgba(200,56,42,0.12);
+}
+#scene-1 .noise-layer {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.12'/%3E%3C/svg%3E");
+  background-size: 120px; mix-blend-mode: screen; transition: opacity 0.5s;
+  animation: noiseShift 0.08s steps(1) infinite;
+}
+@keyframes noiseShift {
+  0%  {background-position:0 0}
+  25% {background-position:-30px 15px}
+  50% {background-position:15px -30px}
+  75% {background-position:-15px -15px}
+  100%{background-position:30px 30px}
+}
+#scene-1 .noise-layer.active { opacity: 1; }
+
+/* 글자수 카운터 */
+#scene-1 .char-counter {
+  font-size: 10px; color: var(--text-dim); text-align: right;
+  margin-top: 6px; position: relative; z-index: 2; letter-spacing: 0.5px;
+  transition: color 0.3s;
+}
+#scene-1 .char-counter.warning { color: var(--accent-red); }
+
+#scene-1 .wish-submit { margin-top: 16px; width: 100%; position: relative; z-index: 2; }
+#scene-1 .loading-wrap {
+  display: none; flex-direction: column; align-items: center; gap: 16px;
+  margin-top: 24px; position: relative; z-index: 2;
+}
+#scene-1 .spinner {
+  width: 28px; height: 28px;
+  border: 2px solid rgba(200,56,42,0.15);
+  border-top-color: var(--accent-red);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+#scene-1 .loading-text {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 12px; color: rgba(200,56,42,0.8); letter-spacing: 2px;
+  min-width: 200px; text-align: center;
+}
+
+/* 소원 결과 오버레이 */
+#wish-reveal {
+  position: absolute; inset: 0;
+  background: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 620; opacity: 0; pointer-events: none;
+  padding: 40px; text-align: center;
+  transition: opacity 0.6s;
+}
+#wish-reveal.show { opacity: 1; pointer-events: all; }
+#wish-reveal .reveal-label {
+  font-family: 'Noto Serif KR', serif; font-size: 12px;
+  color: rgba(200,56,42,0.5); letter-spacing: 3px; margin-bottom: 28px;
+}
+#wish-reveal .reveal-wish {
+  font-family: 'Black Han Sans', sans-serif; font-size: 22px;
+  color: var(--accent-red); letter-spacing: 3px; line-height: 1.8;
+  text-shadow: 0 0 30px rgba(200,56,42,0.6);
+  min-height: 60px;
+}
+/* 소원 텍스트 글자별 등장 */
+#wish-reveal .reveal-wish span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: revealChar 0.3s ease forwards;
+}
+@keyframes revealChar {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── SCENE 2 ─────────────────────────────────────── */
+#scene-2 {
+  background: var(--bg-phone);
+  padding: 56px 28px 36px;
+  text-align: center;
+}
+/* 경보 등 깜박임 오버레이 */
+#scene-2 .alarm-overlay {
+  position: absolute; inset: 0;
+  background: rgba(200,56,42,0); pointer-events: none; z-index: 0;
+  animation: alarmPulse 2.0s ease-in-out infinite;
+}
+@keyframes alarmPulse {
+  0%,100%{background:rgba(200,56,42,0)}
+  50%    {background:rgba(200,56,42,0.055)}
+}
+/* 시스템 경보 배지 */
+#scene-2 .alert-badge {
+  display: flex; align-items: center; gap: 8px;
+  position: relative; z-index: 2;
+  margin-bottom: 20px;
+}
+#scene-2 .alert-led {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  box-shadow: 0 0 8px var(--accent-red);
+  animation: ledBlink 1.0s step-end infinite;
+  flex-shrink: 0;
+}
+@keyframes ledBlink {
+  0%,49%{opacity:1; box-shadow:0 0 8px var(--accent-red);}
+  50%,100%{opacity:0.15; box-shadow:none;}
+}
+#scene-2 .alert-text {
+  font-size: 10px; color: var(--accent-red);
+  letter-spacing: 3px; font-weight: 700;
+}
+
+/* 타이머 */
+#scene-2 .timer-wrap { position: relative; z-index: 2; margin-bottom: 28px; }
+#scene-2 .timer-label {
+  font-size: 9px; color: var(--text-dim); letter-spacing: 4px;
+  margin-bottom: 6px; text-transform: uppercase;
+}
+#scene-2 .timer-display {
+  font-family: monospace; font-size: 52px; font-weight: 700;
+  color: var(--text); letter-spacing: 3px;
+  text-shadow: 0 0 24px rgba(255,255,255,0.08);
+  transition: color 0.5s; line-height: 1;
+  position: relative;
+}
+#scene-2 .timer-display.danger {
+  color: var(--accent-red);
+  text-shadow: 0 0 24px rgba(200,56,42,0.5);
+  animation: timerShake 0.08s ease-in-out infinite alternate;
+}
+@keyframes timerShake { from{transform:translateX(-1.5px)}to{transform:translateX(1.5px)} }
+
+/* 경고 텍스트 */
+#scene-2 .warning-text {
+  font-family: 'Noto Serif KR', serif; font-weight: 300;
+  font-size: 13px; color: var(--text-dim); line-height: 2.3;
+  min-height: 150px; position: relative; z-index: 2; text-align: left;
+  padding: 16px; background: rgba(200,56,42,0.04);
+  border-left: 2px solid rgba(200,56,42,0.3);
+  border-radius: 0 4px 4px 0;
+}
+#scene-2 .warning-text .w-red   { color: var(--accent-red); }
+#scene-2 .warning-text .w-white { color: var(--text); }
+
+/* 검열 모자이크 (가로 블록) */
+#scene-2 .censor-wrap {
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  width: 4.8em;
+  height: 1.15em;
+  margin: 0 0.12em;
+  border-radius: 2px;
+  overflow: hidden;
+}
+#scene-2 .censor-mosaic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: #4a2828;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      #6a3030 0 5px,
+      #c8382a 5px 8px,
+      #3a1c1c 8px 13px,
+      #8a4040 13px 17px,
+      #502828 17px 22px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.15) 0 2px,
+      transparent 2px 5px,
+      rgba(255,255,255,0.06) 5px 7px
+    );
+  background-size: 22px 100%, 100% 7px;
+  box-shadow: inset 0 0 0 1px rgba(200,56,42,0.35);
+  animation: censorMosaicShift 0.55s steps(6) infinite;
+  opacity: 0;
+  transform: scaleX(0.2);
+  transform-origin: left center;
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#scene-2 .censor-wrap.reveal .censor-mosaic {
+  opacity: 1;
+  transform: scaleX(1);
+}
+@keyframes censorMosaicShift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 22px 0, 0 7px; }
+}
+
+/* 에러코드 줄 */
+#scene-2 .error-code {
+  font-family: monospace; font-size: 11px;
+  color: rgba(200,56,42,0.5); letter-spacing: 1px;
+  margin-top: 12px; position: relative; z-index: 2;
+}
+
+#scene-2 .start-btn-wrap {
+  margin-top: 24px; opacity: 0; transition: opacity 0.6s; position: relative; z-index: 2;
+}
+#scene-2 .start-btn-wrap.visible { opacity: 1; }
+
+/* 타이머 글리치 진입 애니메이션 */
+@keyframes timerGlitchIn {
+  0%  { opacity:0; transform:scaleX(1.08) translateX(-4px); filter:blur(3px); }
+  20% { opacity:1; transform:scaleX(0.97) translateX(3px);  filter:blur(1px); }
+  40% { transform:scaleX(1.03) translateX(-2px); filter:blur(0); }
+  60% { transform:scaleX(0.99) translateX(1px); }
+  80% { transform:scaleX(1.01); }
+  100%{ transform:scaleX(1) translateX(0); opacity:1; filter:blur(0); }
+}
+.timer-glitch-enter {
+  animation: timerGlitchIn 0.7s cubic-bezier(0.2,0,0.4,1) both;
+}
+
+/* ─── SCENE 3 ─────────────────────────────────────── */
+#scene-3 {
+  background: var(--bg-phone); padding: 0;
+  flex-direction: column; justify-content: flex-start;
+}
+#hud {
+  width: 100%; padding: 56px 14px 8px;
+  display: flex; flex-direction: column; gap: 4px;
+  background: rgba(10,10,15,0.92);
+  border-bottom: 1px solid var(--border);
+  position: relative; z-index: 10; flex-shrink: 0;
+}
+#hud .hud-row { display: flex; align-items: center; justify-content: space-between; }
+#hud .hud-timer {
+  font-family: monospace; font-size: 18px; font-weight: 700;
+  color: var(--text); letter-spacing: 2px; transition: color 0.5s;
+}
+#hud .hud-timer.danger { color: var(--accent-red); }
+#hud .hud-ghost { font-size: 11px; color: var(--text-dim); letter-spacing: 0.5px; }
+#hud .hud-ghost.close { color: var(--accent-red); animation: blink 0.5s step-end infinite; }
+#hud .hud-clues { font-size: 11px; color: var(--text-dim); }
+#hud .hud-clues span { color: var(--item-color); font-weight: 700; }
+#maze-canvas { display: block; flex: 1; width: 100%; min-height: 300px; }
+
+/* 비네팅 */
+#vignette {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(200,56,42,0) 100%);
+  transition: background 0.4s;
+}
+#vignette.level1 {
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(120,20,20,0.3) 80%, rgba(120,20,20,0.5) 100%);
+}
+#vignette.level2 {
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(140,20,20,0.45) 70%, rgba(140,20,20,0.75) 100%);
+  animation: vignettePulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes vignettePulse { from{opacity:0.7}to{opacity:1} }
+
+/* 포획 플래시 */
+#caught-flash {
+  position: absolute; inset: 0;
+  background: rgba(200,56,42,0.7);
+  opacity: 0; pointer-events: none; z-index: 20;
+  transition: opacity 0.1s;
+}
+
+/* 단서 팝업 */
+#clue-popup {
+  position: absolute; bottom: 140px; left: 16px; right: 16px;
+  background: var(--surface); border: 1px solid rgba(200,56,42,0.4);
+  border-radius: 8px; padding: 14px 16px; z-index: 30;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+#clue-popup.show { opacity: 1; transform: translateY(0); }
+#clue-popup .clue-title { font-size: 11px; color: var(--item-color); letter-spacing: 1px; margin-bottom: 6px; }
+#clue-popup .clue-text {
+  font-family: 'Noto Serif KR', serif; font-size: 12px; color: var(--text-dim); line-height: 1.7;
+}
+
+/* D-Pad */
+#dpad {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  width: 130px; height: 130px; z-index: 15;
+  display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); gap: 3px;
+}
+.dpad-btn {
+  background: rgba(200,56,42,0.07); border: 1px solid rgba(200,56,42,0.2);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  user-select: none; -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s; touch-action: manipulation;
+}
+.dpad-btn svg { display: block; pointer-events: none; }
+.dpad-btn:active { background: rgba(200,56,42,0.3); }
+.dpad-center {
+  background: rgba(200,56,42,0.04);
+  border: 1px solid rgba(200,56,42,0.1);
+  border-radius: 6px;
+}
+
+/* 귀신 발각 오버레이 */
+#caught-overlay {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center,
+    rgba(0,0,0,0.88) 0%,
+    rgba(20,0,0,0.75) 50%,
+    rgba(0,0,0,0.3) 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 60; opacity: 0; pointer-events: none;
+  transition: opacity 0.7s; text-align: center;
+  padding: 40px 28px;
+}
+#caught-overlay.show { opacity: 1; pointer-events: auto; }
+#caught-overlay .caught-icon {
+  margin-bottom: 18px; line-height: 0;
+  animation: blink 0.8s step-end infinite;
+}
+#caught-overlay .caught-icon svg { display: block; }
+#caught-overlay .caught-title {
+  font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 700;
+  color: var(--accent-red); letter-spacing: 3px; margin-bottom: 20px;
+}
+#caught-overlay .caught-sub {
+  font-family: 'Noto Serif KR', serif; font-size: 13px;
+  color: var(--text-dim); line-height: 1.9; margin-bottom: 44px;
+}
+.caught-restart-btn { width: 100%; transition: box-shadow 0.25s; }
+.caught-restart-btn:hover { box-shadow: 0 0 20px rgba(200,56,42,0.5); }
+
+/* ─── SCENE 4 ─────────────────────────────────────── */
+#scene-4 {
+  background: var(--bg-phone);
+  padding: 60px 28px 40px;
+  text-align: center;
+}
+#scene-4::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(200,56,42,0);
+  pointer-events: none;
+  transition: background 2.5s ease;
+}
+#scene-4.danger::before { background: rgba(200,56,42,0.06); }
+#scene-4 .grid-bg { z-index: 0; }
+#scene-4 > :not(.grid-bg):not(.scanlines) { position: relative; z-index: 2; }
+#scene-4 .choice-timer {
+  font-family: monospace; font-size: 36px; color: var(--accent-red);
+  margin-bottom: 8px; letter-spacing: 3px;
+}
+#scene-4 .choice-label { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 36px; }
+#scene-4 .choice-intro {
+  font-family: 'Noto Serif KR', serif; font-size: 14px;
+  color: var(--text); line-height: 2; margin-bottom: 40px;
+}
+#scene-4 .choice-btn-a, #scene-4 .choice-btn-b {
+  width: 100%; padding: 18px 20px; margin-bottom: 12px; border-radius: 6px;
+  cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px; letter-spacing: 1px;
+  transition: transform 0.15s, box-shadow 0.25s, background 0.25s, color 0.25s;
+}
+#scene-4 .choice-btn-a {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: var(--text);
+}
+#scene-4 .choice-btn-a:hover {
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 0 16px rgba(255,255,255,0.12);
+}
+#scene-4 .choice-btn-b {
+  background: rgba(200,56,42,0.1); border: 1px solid rgba(200,56,42,0.4); color: var(--accent-red);
+}
+#scene-4 .choice-btn-b:hover {
+  background: rgba(200,56,42,0.22);
+  color: #ff6650;
+  box-shadow: 0 0 24px rgba(200,56,42,0.45);
+}
+#scene-4 .choice-btn-a:active, #scene-4 .choice-btn-b:active { transform: scale(0.98); }
+#scene-4 .choice-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; display: block; }
+
+/* ─── SCENE 5 ─────────────────────────────────────── */
+#scene-5 {
+  display: flex;
+  padding: 60px 28px 40px;
+  text-align: center;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+#scene-5 > * { position: relative; z-index: 1; }
+
+/* Ending A — 소원 취소 · 생존 */
+#scene-5.ending-a {
+  background: linear-gradient(
+    180deg,
+    #0e0e14 0%,
+    #090910 60%,
+    #060608 100%
+  );
+}
+#scene-5.ending-a::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 180px;
+}
+#scene-5.ending-a .ending-tag { color: rgba(160,165,180,0.65); opacity: 1; }
+#scene-5.ending-a .ending-text { color: var(--text-dim); opacity: 0.72; }
+#scene-5.ending-a .restart-btn-wrap { margin-top: 40px; margin-bottom: 0; }
+
+/* Ending B — 시스템 파괴 · 자유 */
+#scene-5.ending-b { background: #000; }
+#scene-5.ending-b::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 80px;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(transparent, rgba(74,158,255,0.28), transparent);
+  animation: endingBSweep 0.8s ease-out forwards;
+}
+@keyframes endingBSweep {
+  0%   { top: -80px; }
+  100% { top: 110%; }
+}
+#scene-5.ending-b .ending-tag { color: var(--exit-color); opacity: 1; }
+#scene-5.ending-b .ending-text { color: rgba(200,220,255,0.85); }
+
+/* Ending C — Bad Ending · 영혼 흡수 */
+#scene-5.ending-c { background: #0a0000; }
+#scene-5.ending-c .ending-tag { color: var(--accent-red); opacity: 1; }
+#scene-5.ending-c .ending-text {
+  color: var(--accent-red);
+  animation: endingCRedFlicker 6s infinite;
+}
+@keyframes endingCRedFlicker {
+  0%,100% { opacity: 1; }
+  92%     { opacity: 1; }
+  93%     { opacity: 0.6; }
+  94%     { opacity: 1; }
+  97%     { opacity: 0.75; }
+  98%     { opacity: 1; }
+}
+#scene-5.ending-c .ending-wish {
+  display: block;
+  text-shadow: 0 0 40px rgba(200,56,42,0.9);
+}
+
+#scene-5 .ending-tag { font-size: 10px; letter-spacing: 3px; margin-bottom: 24px; opacity: 0.6; }
+#scene-5 .ending-text {
+  font-family: 'Noto Serif KR', serif; font-weight: 300; font-size: 15px; line-height: 2.4;
+  width: 100%; flex-shrink: 0;
+}
+#scene-5 .ending-wish {
+  font-family: 'Black Han Sans', sans-serif; font-size: 18px;
+  color: var(--accent-red); margin: 20px 0; letter-spacing: 2px; display: none;
+  flex-shrink: 0; width: 100%;
+}
+#scene-5 .restart-btn-wrap {
+  margin-top: 48px;
+  margin-bottom: 24px;
+  opacity: 0;
+  pointer-events: none;
+  flex-shrink: 0;
+  width: 100%;
+  transition: opacity 0.6s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#scene-5 .restart-btn-wrap.visible { opacity: 1; pointer-events: auto; }
+
+/* 글리치 */
+@keyframes glitch {
+  0%  {clip-path:inset(0 0 95% 0);transform:translateX(-3px)}
+  25% {clip-path:inset(40% 0 40% 0);transform:translateX(3px)}
+  50% {clip-path:inset(70% 0 10% 0);transform:translateX(-2px)}
+  75% {clip-path:inset(90% 0 0 0);transform:translateX(2px)}
+  100%{clip-path:inset(0);transform:translateX(0)}
+}
+.glitch-effect { position: relative; }
+.glitch-effect::before, .glitch-effect::after {
+  content: attr(data-text); position: absolute; inset: 0; opacity: 0;
+}
+.glitch-effect.playing::before { color:rgba(0,255,200,0.7); animation:glitch 0.4s steps(1) forwards; opacity:1; }
+.glitch-effect.playing::after  { color:rgba(200,56,42,0.7); animation:glitch 0.4s steps(1) 0.05s forwards; opacity:1; }
+
+/* 암전 오버레이 */
+#blackout {
+  position: absolute; inset: 0; background: #000; opacity: 0;
+  pointer-events: none; z-index: 500; transition: opacity 0.4s;
+}
+#blackout.show { opacity: 1; pointer-events: all; }
+
+/* 반응형 */
+@media (max-height: 820px) { :root { --phone-h: 680px; --phone-w: 340px; } }
+@media (max-height: 720px) { :root { --phone-h: 600px; --phone-w: 300px; } }
+</style>
+</head>
+<body>
+
+<div id="phone-outer">
+  <div id="phone-screen">
+
+    <div id="notch"><div class="camera"></div></div>
+    <div id="blackout"></div>
+    <div id="vignette"></div>
+    <div id="caught-flash"></div>
+
+    <!-- ════ 인트로 스플래시 오버레이 ════ -->
+    <div id="intro-splash">
+
+      <!-- 화면 켜지는 플래시 -->
+      <div id="screen-on-flash"></div>
+
+      <!-- 터치 인디케이터 (JS가 위치 설정) -->
+      <div id="touch-indicator"></div>
+
+      <!-- 잠금화면 -->
+      <div id="lock-screen">
+        <div class="lock-time" id="lock-time">9:41</div>
+        <div class="lock-date" id="lock-date">5월 28일 목요일</div>
+        <div class="lock-swipe-hint">밀어서 잠금 해제</div>
+      </div>
+
+      <!-- 홈화면 — 4열 그리드 -->
+      <div id="home-screen">
+        <div class="home-statusbar">
+          <span class="hs-time" id="hs-time">9:41</span>
+          <span class="hs-icons">
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="0" y="3" width="2" height="7" rx="0.5" fill="rgba(255,255,255,0.6)"/><rect x="3" y="2" width="2" height="8" rx="0.5" fill="rgba(255,255,255,0.7)"/><rect x="6" y="1" width="2" height="9" rx="0.5" fill="rgba(255,255,255,0.8)"/><rect x="9" y="0" width="2" height="10" rx="0.5" fill="rgba(255,255,255,0.85)"/></svg>
+            <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><rect x="0.5" y="0.5" width="13" height="9" rx="2" stroke="rgba(255,255,255,0.6)" stroke-width="1"/><rect x="14" y="3" width="1.5" height="4" rx="0.75" fill="rgba(255,255,255,0.5)"/><rect x="1.5" y="1.5" width="9" height="7" rx="1.5" fill="rgba(255,255,255,0.8)"/></svg>
+          </span>
+        </div>
+
+        <!-- 앱 그리드 -->
+        <div class="home-app-grid">
+          <!-- 1행 -->
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1a3a5c,#0d2440);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="2" stroke="#8ab8e0" stroke-width="1.5"/><circle cx="12" cy="13" r="3.25" stroke="#8ab8e0" stroke-width="1.5"/><path d="M9 7l1.5-2h3L15 7" stroke="#8ab8e0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">카메라</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1e2e10,#121e08);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2" stroke="#9ec878" stroke-width="1.5"/><path d="M9 8.5h6M9 12h6M9 15.5h4" stroke="#9ec878" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <span class="app-cell-label">메모</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#2a1a3a,#180d28);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4v11.5a2.5 2.5 0 11-5 0V4" stroke="#c4a8e8" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="17" r="2.5" stroke="#c4a8e8" stroke-width="1.5"/><path d="M14 4L8 6.5" stroke="#c4a8e8" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <span class="app-cell-label">음악</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1a2a3a,#0d1a28);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" stroke="#90b4d4" stroke-width="1.5"/><path d="M3 8l9 6.5L21 8" stroke="#90b4d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">메일</span>
+          </div>
+          <!-- 2행 -->
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1c3020,#0d1e10);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s6.5-4.35 6.5-9.5A6.5 6.5 0 105.5 11.5C5.5 16.65 12 21 12 21z" stroke="#88c898" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="11.5" r="2.25" stroke="#88c898" stroke-width="1.5"/></svg>
+            </div>
+            <span class="app-cell-label">지도</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#2a2210,#1a1508);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" stroke="#d4bc78" stroke-width="1.5"/><path d="M8 8.5h8M8 12h8M8 15.5h5" stroke="#d4bc78" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <span class="app-cell-label">뉴스</span>
+          </div>
+          <!-- 기리고 앱 — 그리드 안에 자연스럽게 배치 -->
+          <div class="app-cell" id="cell-girigo" onclick="tapGirigoIcon()">
+            <div class="app-icon-box">
+              <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="22" cy="22" r="18" stroke="#c8382a" stroke-width="1.5" opacity="0.6"/>
+                <path d="M22 6.2V10.5" stroke="#ff6650" stroke-width="1.3" stroke-linecap="round" opacity="0.78"/>
+                <path d="M17.2 8.4L15 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
+                <path d="M26.8 8.4L29 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
+                <path d="M22 12.4L18.4 15.2C16.6 17.2 16 22.8 16.8 27.8L19.4 31.2L22 29.6L24.6 31.2L27.2 27.8C28 22.8 27.4 17.2 25.6 15.2L22 12.4Z" stroke="#c8382a" stroke-width="1.65" stroke-linejoin="round"/>
+                <path d="M22 13.2V29.2" stroke="#c8382a" stroke-width="1" stroke-linecap="round" opacity="0.52"/>
+                <path d="M17.4 31.4Q22 33.6 26.6 31.4" stroke="#c8382a" stroke-width="1.15" stroke-linecap="round" opacity="0.62"/>
+              </svg>
+            </div>
+            <span class="app-cell-label">기리고</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1a1a2e,#0e0e20);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="#a8a8d8" stroke-width="1.5"/><path d="M12 8v4.5l3 2" stroke="#a8a8d8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">시계</span>
+          </div>
+          <!-- 3행 -->
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#181828,#0e0e1c);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5l2 6.2h6.4l-5.2 3.8 2 6.3L12 17.2l-5.2 3.6 2-6.3-5.2-3.8h6.4L12 4.5z" stroke="#b0a8d8" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">앱스토어</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#0a1a2e,#060e1e);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.5 17.5h9a3.5 3.5 0 000-7 4.5 4.5 0 00-8.7-1.2A3.5 3.5 0 007.5 17.5z" stroke="#78b0e8" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">날씨</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1e1418,#14090e);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 9h10l-1.2 11H8.2L7 9z" stroke="#d0a0b0" stroke-width="1.5" stroke-linejoin="round"/><path d="M9.5 9V7.5a2.5 2.5 0 015 0V9" stroke="#d0a0b0" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <span class="app-cell-label">쇼핑</span>
+          </div>
+          <div class="app-cell">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#141e14,#0a140a);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="2.75" stroke="#94b894" stroke-width="1.5"/><path d="M12 4.5v2.2M12 17.3v2.2M4.5 12h2.2M17.3 12h2.2M6.9 6.9l1.55 1.55M15.55 15.55l1.55 1.55M17.1 6.9l-1.55 1.55M8.45 15.55l-1.55 1.55" stroke="#94b894" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <span class="app-cell-label">설정</span>
+          </div>
+        </div>
+
+        <!-- 독 -->
+        <div class="home-dock">
+          <div class="app-cell" style="opacity:1;transform:none;">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1a3010,#0e200a);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.5 4.5h3.2l1.8 4.8-2.4 1.6a10.5 10.5 0 004.9 4.9l1.6-2.4 4.8 1.8v3.2a2 2 0 01-2 2A13 13 0 015.5 6.5a2 2 0 012-2z" stroke="#8ec878" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">전화</span>
+          </div>
+          <div class="app-cell" style="opacity:1;transform:none;">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#1a2a3a,#0e1a26);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5.5h14a2 2 0 012 2v7.5a2 2 0 01-2 2H10.5L6.5 19v-2.5H5a2 2 0 01-2-2V7.5a2 2 0 012-2z" stroke="#90b4d4" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">메시지</span>
+          </div>
+          <div class="app-cell" style="opacity:1;transform:none;">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#002244,#001530);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="#68a8e8" stroke-width="1.5"/><path d="M12 5.5v2M12 16.5v2M5.5 12h2M16.5 12h2" stroke="#68a8e8" stroke-width="1.5" stroke-linecap="round"/><path d="M12 8.5l1.2 5.5-1.2 1.8-1.2-1.8L12 8.5z" stroke="#68a8e8" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <span class="app-cell-label">Safari</span>
+          </div>
+          <div class="app-cell" style="opacity:1;transform:none;">
+            <div class="app-icon-box" style="background:linear-gradient(145deg,#2a1010,#1a0808);">
+              <svg class="app-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8.5 14.5H7a3.5 3.5 0 010-7h.8a2.8 2.8 0 012.7 2.2V11h4V9.2A2.8 2.8 0 0117.2 7H18a3.5 3.5 0 010 7h-1.5" stroke="#e09898" stroke-width="1.5" stroke-linejoin="round"/><circle cx="9.5" cy="10.5" r="1" stroke="#e09898" stroke-width="1.2"/><circle cx="15.5" cy="10.5" r="1" stroke="#e09898" stroke-width="1.2"/></svg>
+            </div>
+            <span class="app-cell-label">게임</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 앱 내부 로딩 스플래시 -->
+      <div id="app-splash">
+        <div class="splash-icon">
+          <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="22" cy="22" r="18" stroke="#c8382a" stroke-width="1.5" opacity="0.6"/>
+            <path d="M22 6.2V10.5" stroke="#ff6650" stroke-width="1.3" stroke-linecap="round" opacity="0.78"/>
+            <path d="M17.2 8.4L15 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
+            <path d="M26.8 8.4L29 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
+            <path d="M22 12.4L18.4 15.2C16.6 17.2 16 22.8 16.8 27.8L19.4 31.2L22 29.6L24.6 31.2L27.2 27.8C28 22.8 27.4 17.2 25.6 15.2L22 12.4Z" stroke="#c8382a" stroke-width="1.65" stroke-linejoin="round"/>
+            <path d="M22 13.2V29.2" stroke="#c8382a" stroke-width="1" stroke-linecap="round" opacity="0.52"/>
+            <path d="M17.4 31.4Q22 33.6 26.6 31.4" stroke="#c8382a" stroke-width="1.15" stroke-linecap="round" opacity="0.62"/>
+          </svg>
+        </div>
+        <div class="splash-title">기리고</div>
+        <div class="splash-sub">祈禱 · GIRIGO</div>
+        <div class="splash-bar-wrap"><div class="splash-bar-fill"></div></div>
+      </div>
+
+    </div><!-- /intro-splash -->
+
+    <!-- SCENE 0 — 앱 소개 -->
+    <div id="scene-0" class="scene active">
+      <div class="scanlines"></div>
+      <div class="app-icon">
+        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="22" cy="22" r="18" stroke="#c8382a" stroke-width="1.5" opacity="0.6"/>
+          <path d="M22 6.2V10.5" stroke="#ff6650" stroke-width="1.3" stroke-linecap="round" opacity="0.78"/>
+          <path d="M17.2 8.4L15 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
+          <path d="M26.8 8.4L29 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
+          <path d="M22 12.4L18.4 15.2C16.6 17.2 16 22.8 16.8 27.8L19.4 31.2L22 29.6L24.6 31.2L27.2 27.8C28 22.8 27.4 17.2 25.6 15.2L22 12.4Z" stroke="#c8382a" stroke-width="1.65" stroke-linejoin="round"/>
+          <path d="M22 13.2V29.2" stroke="#c8382a" stroke-width="1" stroke-linecap="round" opacity="0.52"/>
+          <path d="M17.4 31.4Q22 33.6 26.6 31.4" stroke="#c8382a" stroke-width="1.15" stroke-linecap="round" opacity="0.62"/>
+        </svg>
+      </div>
+      <div class="app-name">기리고</div>
+      <div class="app-name-sub">祈禱 · GIRIGO</div>
+      <div class="intro-text" id="intro-text"></div>
+      <div class="btn-wrap" id="intro-btn-wrap">
+        <button class="btn" id="btn-start-0" onclick="goToScene1()">동의하고 시작하기</button>
+      </div>
+    </div>
+
+    <!-- SCENE 1 — 소원 입력 -->
+    <div id="scene-1" class="scene">
+      <div class="noise-layer" id="noise-layer"></div>
+      <div class="red-overlay" id="red-overlay"></div>
+      <div class="status-bar">
+        <span class="time-text" id="status-time">9:41</span>
+        <span class="icons">
+          <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+            <rect x="0" y="3" width="2" height="7" rx="0.5" fill="rgba(232,224,213,0.55)"/>
+            <rect x="3" y="2" width="2" height="8" rx="0.5" fill="rgba(232,224,213,0.65)"/>
+            <rect x="6" y="1" width="2" height="9" rx="0.5" fill="rgba(232,224,213,0.78)"/>
+            <rect x="9" y="0" width="2" height="10" rx="0.5" fill="rgba(232,224,213,0.88)"/>
+          </svg>
+          <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
+            <path d="M7.5 2C9.8 2 11.9 3 13.4 4.6L14.5 3.4C12.7 1.5 10.2 0.3 7.5 0.3S2.3 1.5 0.5 3.4L1.6 4.6C3.1 3 5.2 2 7.5 2Z" fill="rgba(232,224,213,0.55)"/>
+            <path d="M7.5 4.8C9.1 4.8 10.5 5.5 11.6 6.6L12.7 5.4C11.3 4 9.5 3.1 7.5 3.1S3.7 4 2.3 5.4L3.4 6.6C4.5 5.5 5.9 4.8 7.5 4.8Z" fill="rgba(232,224,213,0.72)"/>
+            <circle cx="7.5" cy="9.5" r="1.5" fill="rgba(232,224,213,0.9)"/>
+          </svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+            <rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="rgba(232,224,213,0.45)" stroke-width="1"/>
+            <rect x="22" y="4" width="2.5" height="4" rx="1.25" fill="rgba(232,224,213,0.4)"/>
+            <rect x="2" y="2" width="16" height="8" rx="2" fill="rgba(232,224,213,0.82)"/>
+          </svg>
+        </span>
+      </div>
+      <div class="logo">기리고</div>
+      <div class="logo-sub">소원을 들어드립니다</div>
+      <div class="wish-form">
+        <label class="wish-label" for="wish-input">당신의 소원</label>
+        <textarea class="wish-input" id="wish-input"
+          placeholder="무엇이든 이루어드립니다. 소원을 입력하세요."></textarea>
+        <div class="char-counter" id="char-counter">0 / 80</div>
+        <div class="wish-submit">
+          <button class="btn" id="btn-wish" disabled onclick="submitWish()" style="width:100%">소원 빌기</button>
+        </div>
+        <div class="loading-wrap" id="loading-wrap">
+          <div class="spinner"></div>
+          <span class="loading-text" id="loading-text">소원을 처리 중입니다...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 소원 결과 오버레이 -->
+    <div id="wish-reveal">
+      <div class="reveal-label">소원이 이루어졌습니다.</div>
+      <div class="reveal-wish" id="reveal-wish-text"></div>
+    </div>
+
+    <!-- SCENE 2 — 카운트다운 -->
+    <div id="scene-2" class="scene">
+      <div class="grid-bg"></div>
+      <div class="scanlines"></div>
+      <div class="alarm-overlay"></div>
+      <div class="alert-badge">
+        <div class="alert-led"></div>
+        <span class="alert-text">SYSTEM ALERT</span>
+      </div>
+      <div class="timer-wrap">
+        <div class="timer-label">남은 시간</div>
+        <div class="timer-display glitch-effect timer-glitch-enter" id="main-timer" data-text="23:59:59">23:59:59</div>
+      </div>
+      <div class="warning-text" id="warning-text"></div>
+      <div class="error-code" id="error-code"></div>
+      <div class="start-btn-wrap" id="start-btn-wrap">
+        <button class="btn" onclick="goToScene3()">지금 탈출 시작하기</button>
+      </div>
+    </div>
+
+    <!-- SCENE 3 — 학교 탈출 -->
+    <div id="scene-3" class="scene">
+      <div id="hud">
+        <div class="hud-row">
+          <span class="hud-timer" id="hud-timer">⏱ 23:59:59</span>
+          <span class="hud-ghost" id="hud-ghost">👁 귀신: 교실 밖</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-clues">단서: <span id="clue-count">0</span>/3 수집</span>
+        </div>
+      </div>
+      <canvas id="maze-canvas" tabindex="0" aria-label="학교 3D 탈출 맵"></canvas>
+      <div id="clue-popup">
+        <div class="clue-title" id="clue-popup-title">🔍 단서 발견</div>
+        <div class="clue-text" id="clue-popup-text"></div>
+      </div>
+      <div id="dpad">
+        <div></div>
+        <button class="dpad-btn" ontouchstart="dpadPress('up')"   ontouchend="dpadRelease()" onmousedown="dpadPress('up')"   onmouseup="dpadRelease()" onmouseleave="dpadRelease()"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M8 3.5L13 12.5H3L8 3.5Z" stroke="#c8382a" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/></svg></button>
+        <div></div>
+        <button class="dpad-btn" ontouchstart="dpadPress('left')" ontouchend="dpadRelease()" onmousedown="dpadPress('left')" onmouseup="dpadRelease()" onmouseleave="dpadRelease()"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M3.5 8L12.5 3V13L3.5 8Z" stroke="#c8382a" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/></svg></button>
+        <div class="dpad-center"></div>
+        <button class="dpad-btn" ontouchstart="dpadPress('right')"ontouchend="dpadRelease()" onmousedown="dpadPress('right')"onmouseup="dpadRelease()" onmouseleave="dpadRelease()"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M12.5 8L3.5 3V13L12.5 8Z" stroke="#c8382a" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/></svg></button>
+        <div></div>
+        <button class="dpad-btn" ontouchstart="dpadPress('down')" ontouchend="dpadRelease()" onmousedown="dpadPress('down')" onmouseup="dpadRelease()" onmouseleave="dpadRelease()"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="M8 12.5L13 3.5H3L8 12.5Z" stroke="#c8382a" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/></svg></button>
+        <div></div>
+      </div>
+
+      <!-- 귀신 발각 오버레이 -->
+      <div id="caught-overlay">
+        <div class="caught-icon">
+          <svg viewBox="0 0 48 48" width="48" height="48" fill="none" aria-hidden="true">
+            <path d="M24 10.5C15.5 14.5 11.5 20 11.5 24c0 4.2 4.2 9.8 12.5 13.5C32.3 33.8 36.5 28.2 36.5 24S32.3 14.5 24 10.5z" stroke="#c8382a" stroke-width="1.5" stroke-linejoin="round"/>
+            <line x1="32" y1="24" x2="36" y2="24" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
+            <line x1="28" y1="30.9" x2="30" y2="34.4" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
+            <line x1="20" y1="30.9" x2="18" y2="34.4" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
+            <line x1="16" y1="24" x2="12" y2="24" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
+            <line x1="20" y1="17.1" x2="18" y2="13.6" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
+            <line x1="28" y1="17.1" x2="30" y2="13.6" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
+            <circle cx="24" cy="24" r="7" fill="rgba(200,56,42,0.85)"/>
+            <line x1="18" y1="14" x2="17" y2="11" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+            <line x1="24" y1="11.5" x2="24" y2="8.5" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+            <line x1="30" y1="14" x2="31" y2="11" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+            <line x1="18" y1="34" x2="17" y2="37" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+            <line x1="24" y1="36.5" x2="24" y2="39.5" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+            <line x1="30" y1="34" x2="31" y2="37" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="caught-title">발각되었습니다</div>
+        <div class="caught-sub">귀신이 당신을 발견했습니다.<br>당신의 영혼은 기리고의 일부가 되었습니다.</div>
+        <button class="btn caught-restart-btn" onclick="restartGame()">다시 소원빌기</button>
+      </div>
+    </div>
+
+    <!-- SCENE 4 — 최종 선택 -->
+    <div id="scene-4" class="scene">
+      <div class="grid-bg"></div>
+      <div class="scanlines"></div>
+      <div class="choice-timer" id="choice-timer">00:03:41</div>
+      <div class="choice-label">탈출구 앞에 섰습니다</div>
+      <div class="choice-intro">두 가지 선택이 있습니다.<br>신중하게 결정하십시오.</div>
+      <button class="choice-btn-a btn" onclick="makeChoice('A')">
+        [A] 소원을 취소한다
+        <span class="choice-sub">모든 것을 잃는다</span>
+      </button>
+      <button class="choice-btn-b btn" onclick="makeChoice('B')">
+        [B] 시스템을 파괴한다
+        <span class="choice-sub">영원히 앱이 사라진다</span>
+      </button>
+    </div>
+
+    <!-- SCENE 5 — 엔딩 -->
+    <div id="scene-5" class="scene">
+      <div class="ending-tag" id="ending-tag">ENDING</div>
+      <div class="ending-text" id="ending-text"></div>
+      <div class="ending-wish" id="ending-wish"></div>
+      <div class="restart-btn-wrap" id="restart-btn-wrap">
+        <button type="button" class="btn" id="btn-share-ending" onclick="shareEnding()">내 결말 공유하기</button>
+        <button type="button" class="btn" id="btn-restart-ending" onclick="restartGame()">다시 시작하기</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/girigo-school-v3.js"></script>
+<script>
+'use strict';
+
+/* ── 전역 게임 상태 ── */
+const G = {
+  wish: '',
+  displayTime: 86399,
+  realElapsed: 0,
+  timerInterval: null,
+  cluesCollected: 0,
+  gameOver: false,
+};
+
+function getWishLabel() {
+  return (G.wish && G.wish.trim()) ? G.wish.trim() : '알 수 없는 욕망';
+}
+
+function getWishSnippet(len = 10) {
+  return getWishLabel().slice(0, len);
+}
+
+const REAL_DURATION    = 300;
+const DISPLAY_DURATION = 86400;
+const DISPLAY_DEC      = DISPLAY_DURATION / REAL_DURATION; // 288
+
+/* ── 씬 전환 ── */
+let currentScene = 0;
+
+function showScene(id, transition = 'fade') {
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active','slide-in','fade-in'));
+  const next = document.getElementById(`scene-${id}`);
+  if (!next) return;
+  next.classList.add('active');
+  next.classList.add(transition === 'slide' ? 'slide-in' : 'fade-in');
+  currentScene = id;
+}
+
+function blackoutTransition(callback, duration = 400) {
+  const bo = document.getElementById('blackout');
+  bo.classList.add('show');
+  setTimeout(() => { callback(); setTimeout(() => bo.classList.remove('show'), duration); }, duration);
+}
+
+function redFlashTransition(callback) {
+  const screen = document.getElementById('phone-screen');
+  screen.style.animation = 'redFlash 0.6s ease forwards';
+  setTimeout(() => { screen.style.animation = ''; callback(); }, 600);
+}
+
+/* ── 타이머 포맷 ── */
+function formatTime(s) {
+  s = Math.max(0, Math.floor(s));
+  return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+
+/* ── 상태바 시계 ── */
+function updateStatusClock() {
+  const el = document.getElementById('status-time');
+  if (!el) return;
+  const n = new Date();
+  el.textContent = `${n.getHours()}:${String(n.getMinutes()).padStart(2,'0')}`;
+}
+setInterval(updateStatusClock, 30000);
+updateStatusClock();
+
+/* ── SCENE 0 — 타이핑 (강조 색상 포함) ── */
+// 각 항목: [텍스트, 색상클래스('red'|'white'|'')]
+const INTRO_LINES = [
+  ['기리고(祈禱)',                          'white'],
+  ['',                                      ''],
+  ['욕망 처리 시스템 v9.31',               ''],
+  ['',                                      ''],
+  ['이 앱은 당신의 소원을 들어줍니다.',     ''],
+  ['단, 대가가 존재합니다.',               'red'],
+  ['',                                      ''],
+  ['소원 등록 즉시,',                       ''],
+  ['영혼 추출 카운트다운이 시작됩니다.',    'red'],
+  ['',                                      ''],
+  ['24시간 안에 시스템 코어를 파괴하거나', ''],
+  ['소원을 취소하면 저주는 해제됩니다.',   ''],
+  ['',                                      ''],
+  ['실패 시,',                              ''],
+  ['당신은 기리고의 일부가 됩니다.',       'red'],
+  ['영원히.',                               'red'],
+  ['',                                      ''],
+  ['준비되셨습니까?',                       'red'],
+];
+
+// 줄 끝 딜레이 (빈 줄=짧게, 일반=중간, 강조=길게 멈춤)
+const LINE_PAUSE = { '': 60, 'white': 200, 'red': 380, 'default': 140 };
+
+function startScene0() {
+  showScene(0, 'fade');
+  const container = document.getElementById('intro-text');
+  container.innerHTML = '';
+  // 애니메이션 재시작 (reflow trick)
+  container.style.animation = 'none';
+  container.offsetHeight; // reflow
+  container.style.animation = '';
+  document.getElementById('intro-btn-wrap').classList.remove('visible');
+
+  // 모든 줄을 즉시 빌드 (컨테이너 자체가 페이드인)
+  INTRO_LINES.forEach(([text, cls]) => {
+    if (text === '') {
+      container.appendChild(Object.assign(document.createElement('div'), { className: 'intro-spacer' }));
+      return;
+    }
+    const div = document.createElement('div');
+    div.className = 'intro-line-item'
+      + (cls === 'red'   ? ' text-red'   : '')
+      + (cls === 'white' ? ' text-white' : '');
+    div.textContent = text;
+    container.appendChild(div);
+  });
+
+  // 컨테이너 페이드인(0.75s) 후 버튼 표시
+  setTimeout(() => {
+    document.getElementById('intro-btn-wrap').classList.add('visible');
+  }, 900);
+}
+
+/* ── SCENE 0 → 1 ── */
+function goToScene1() {
+  redFlashTransition(() => showScene(1, 'fade'));
+}
+
+/* ── SCENE 1 — 소원 입력 ── */
+const wishInput  = document.getElementById('wish-input');
+const wishBtn    = document.getElementById('btn-wish');
+const redOverlay = document.getElementById('red-overlay');
+const noiseLayer = document.getElementById('noise-layer');
+const charCounter = document.getElementById('char-counter');
+const MAX_WISH = 80;
+
+wishInput.addEventListener('input', () => {
+  const len = wishInput.value.length;
+  wishBtn.disabled = len === 0;
+
+  // 글자수 카운터
+  charCounter.textContent = `${len} / ${MAX_WISH}`;
+  charCounter.classList.toggle('warning', len >= MAX_WISH * 0.85);
+
+  // 배경 붉어짐 (글자 많을수록 더 붉어짐)
+  const ratio = Math.min(len / MAX_WISH, 1);
+  redOverlay.style.background = `rgba(200,56,42,${ratio * 0.22})`;
+
+  // 노이즈 강도도 같이 올라감
+  noiseLayer.style.opacity = wishInput.value.length > 0 ? String(ratio * 0.8 + 0.2) : '0';
+});
+wishInput.addEventListener('focus', () => {
+  noiseLayer.classList.add('active');
+  noiseLayer.style.opacity = wishInput.value.length > 0 ? '1' : '0.3';
+});
+wishInput.addEventListener('blur', () => {
+  noiseLayer.classList.remove('active');
+  noiseLayer.style.opacity = '0';
+});
+
+// 로딩 메시지 롤링
+const LOADING_MSGS = [
+  '소원을 처리 중입니다...',
+  '욕망을 분석 중입니다...',
+  '시스템이 학습 중입니다...',
+  '계약을 체결 중입니다...',
+];
+let loadingMsgInterval = null;
+
+function startLoadingRoll() {
+  let i = 0;
+  const el = document.getElementById('loading-text');
+  el.textContent = LOADING_MSGS[0];
+  loadingMsgInterval = setInterval(() => {
+    i = (i + 1) % LOADING_MSGS.length;
+    el.style.opacity = '0';
+    setTimeout(() => {
+      el.textContent = LOADING_MSGS[i];
+      el.style.opacity = '1';
+    }, 200);
+  }, 600);
+}
+function stopLoadingRoll() {
+  clearInterval(loadingMsgInterval);
+  loadingMsgInterval = null;
+}
+
+function submitWish() {
+  const val = wishInput.value.trim();
+  if (!val) return;
+  G.wish = val;
+  wishBtn.style.display = 'none';
+  wishInput.disabled = true;
+  const lw = document.getElementById('loading-wrap');
+  lw.style.display = 'flex';
+  document.getElementById('loading-text').style.transition = 'opacity 0.2s';
+  startLoadingRoll();
+
+  setTimeout(() => {
+    stopLoadingRoll();
+    lw.style.display = 'none';
+        // blackout 수동 제어 → wish-reveal(z-index 620) → scene-2
+    const _bo = document.getElementById('blackout');
+    _bo.classList.add('show');
+
+    setTimeout(() => {
+      const reveal     = document.getElementById('wish-reveal');
+      const wishTextEl = document.getElementById('reveal-wish-text');
+      wishTextEl.innerHTML = '';
+      [...G.wish].forEach((ch, i) => {
+        const s = document.createElement('span');
+        s.textContent = ch === '\u0020' ? '\u00a0' : ch;
+        s.style.animationDelay = (i * 55) + 'ms';
+        wishTextEl.appendChild(s);
+      });
+      reveal.classList.add('show');
+
+      // 최소 2.5초 ~ 최대 5초 표시
+      const revealDuration = Math.min(Math.max(G.wish.length * 55 + 1800, 2500), 5000);
+      setTimeout(() => {
+        reveal.classList.remove('show');
+        setTimeout(() => {
+          goToScene2();
+          _bo.classList.remove('show');
+        }, 500);
+      }, revealDuration);
+    }, 500);
+  }, 1800);
+}
+
+/* ── SCENE 2 — 카운트다운 ── */
+function getWarningLines() {
+  const wish = getWishLabel();
+  return [
+    [`시스템이 "${wish}"의 욕망을 학습했습니다.`, 'white'],
+    ['', ''],
+    ['24시간 안에 탈출하거나', ''],
+    ['시스템을 파괴하십시오.', 'red'],
+    ['', ''],
+    ['실패하면...', ''],
+  ];
+}
+
+const ERROR_CODES = [
+  'ERR_SOUL_BINDING_COMPLETE',
+  'DESIRE_INDEX: 0xFF3A',
+  'TARGET_LOCKED: ████████',
+];
+
+function typeMosaicFinalLine(el, onDone) {
+  const lineEl = document.createElement('span');
+  lineEl.className = 'w-red';
+  el.appendChild(lineEl);
+
+  const prefix = '당신은 ';
+  const suffix = ' 됩니다.';
+  let pi = 0;
+
+  function typePrefix() {
+    if (pi < prefix.length) {
+      lineEl.appendChild(document.createTextNode(prefix[pi++]));
+      const ch = prefix[pi - 1];
+      setTimeout(typePrefix, (ch === ' ') ? 40 : 24);
+    } else {
+      const wrap = document.createElement('span');
+      wrap.className = 'censor-wrap';
+      wrap.innerHTML = '<span class="censor-mosaic" aria-hidden="true"></span>';
+      lineEl.appendChild(wrap);
+      requestAnimationFrame(() => wrap.classList.add('reveal'));
+      setTimeout(typeSuffix, 480);
+    }
+  }
+
+  function typeSuffix() {
+    let si = 0;
+    function tick() {
+      if (si < suffix.length) {
+        lineEl.appendChild(document.createTextNode(suffix[si++]));
+        const ch = suffix[si - 1];
+        setTimeout(tick, ch === '.' ? 80 : 24);
+      } else {
+        el.appendChild(document.createElement('br'));
+        onDone();
+      }
+    }
+    tick();
+  }
+
+  typePrefix();
+}
+
+function goToScene2() {
+  showScene(2, 'fade');
+  startTimer();
+
+  const el = document.getElementById('warning-text');
+  el.innerHTML = '';
+  const warningLines = getWarningLines();
+  let line = 0, charInLine = 0, currentLineEl = null;
+
+  function finishScene2Text() {
+    showErrorCodes();
+    setTimeout(() => document.getElementById('start-btn-wrap').classList.add('visible'), 800);
+  }
+
+  function nextChar() {
+    if (line >= warningLines.length) {
+      typeMosaicFinalLine(el, finishScene2Text);
+      return;
+    }
+    const [text, cls] = warningLines[line];
+
+    if (charInLine === 0) {
+      if (text === '') {
+        el.appendChild(document.createElement('br'));
+        line++; setTimeout(nextChar, 80); return;
+      }
+      currentLineEl = document.createElement('span');
+      if (cls === 'red')   currentLineEl.className = 'w-red';
+      if (cls === 'white') currentLineEl.className = 'w-white';
+      el.appendChild(currentLineEl);
+    }
+
+    if (charInLine < text.length) {
+      currentLineEl.textContent += text[charInLine++];
+      const ch = text[charInLine - 1];
+      setTimeout(nextChar, (ch === '.' || ch === ',' || ch === '?') ? 80 : 24);
+    } else {
+      el.appendChild(document.createElement('br'));
+      const pause = cls === 'red' ? 340 : cls === 'white' ? 200 : 160;
+      line++; charInLine = 0; setTimeout(nextChar, pause);
+    }
+  }
+  setTimeout(nextChar, 600);
+}
+
+function showErrorCodes() {
+  const ec = document.getElementById('error-code');
+  if (!ec) return;
+  ec.innerHTML = '';
+  let i = 0;
+  function addCode() {
+    if (i >= ERROR_CODES.length) return;
+    const span = document.createElement('div');
+    span.textContent = ERROR_CODES[i++];
+    span.style.opacity = '0';
+    span.style.transition = 'opacity 0.4s';
+    ec.appendChild(span);
+    requestAnimationFrame(() => requestAnimationFrame(() => span.style.opacity = '1'));
+    setTimeout(addCode, 350);
+  }
+  addCode();
+}
+
+/* ── 글로벌 타이머 ── */
+let wasDanger = false;
+
+function startTimer() {
+  if (G.timerInterval) return;
+  G.timerInterval = setInterval(() => {
+    if (G.gameOver) { clearInterval(G.timerInterval); return; }
+    G.realElapsed++;
+    G.displayTime = Math.max(0, DISPLAY_DURATION - Math.floor(G.realElapsed * DISPLAY_DEC));
+    const ts = formatTime(G.displayTime);
+    const danger = G.displayTime < 600; // 표시 10분 미만
+
+    const mt = document.getElementById('main-timer');
+    if (mt) {
+      mt.textContent = ts;
+      mt.dataset.text = ts;
+
+      // danger 첫 진입 → 글리치 효과 발동
+      if (danger && !wasDanger) {
+        mt.classList.add('danger');
+        mt.classList.add('playing');
+        setTimeout(() => mt.classList.remove('playing'), 500);
+        // 화면도 한 번 번쩍임
+        const cf = document.getElementById('caught-flash');
+        if (cf) { cf.style.opacity='0.3'; setTimeout(()=>cf.style.opacity='0',150); }
+      } else {
+        mt.classList.toggle('danger', danger);
+      }
+    }
+    wasDanger = danger;
+
+    const ht = document.getElementById('hud-timer');
+    if (ht) { ht.textContent = `⏱ ${ts}`; ht.classList.toggle('danger', danger); }
+    const ct = document.getElementById('choice-timer');
+    if (ct) ct.textContent = ts;
+    const s4 = document.getElementById('scene-4');
+    if (s4) s4.classList.toggle('danger', danger);
+
+    if (G.displayTime <= 0) { clearInterval(G.timerInterval); triggerBadEnding(); }
+  }, 1000);
+}
+
+/* ── SCENE 2 → 3 ── */
+function goToScene3() {
+  showScene(3, 'slide');
+  setTimeout(() => { if (typeof initMaze === 'function') initMaze(); }, 300);
+}
+
+/* ── SCENE 3 → 4 ── */
+function goToScene4() {
+  // 소원 텍스트를 선택 화면에 표시
+  const choiceIntro = document.querySelector('#scene-4 .choice-intro');
+  if (choiceIntro && G.wish) {
+    choiceIntro.innerHTML = `<span style="font-family:'Black Han Sans',sans-serif;color:var(--accent-red);letter-spacing:2px;font-size:15px;display:block;margin-bottom:16px;text-shadow:0 0 20px rgba(200,56,42,0.5)">&ldquo;${G.wish}&rdquo;</span>탈출구 앞에 섰습니다.<br>신중하게 결정하십시오.`;
+  }
+  showScene(4, 'slide');
+}
+
+/* ── SCENE 4 — 선택 ── */
+function makeChoice(c) { c === 'A' ? triggerEndingA() : triggerEndingB(); }
+
+/* ── SCENE 5 — 엔딩 ── */
+const ENDING_TEXTS = {
+  A: '소원이 취소되었습니다.\n\n당신이 원했던 모든 것이\n연기처럼 사라졌습니다.\n\n하지만 당신은 살아남았습니다.\n\n기리고는 여전히 존재합니다.\n어딘가에서, 지금 이 순간도\n다음 희생자를 기다리며.',
+  B: '시스템 파괴 완료.\n기리고가 종료되었습니다.\n\n하지만 욕망은 사라지지 않습니다.\n당신 안의 욕망이 남아있는 한,\n기리고는 다시 태어날 것입니다.\n\n당신은 자유를 얻었습니다.\n그 대가를 치를 준비가 되어 있습니까.',
+  C: '24:00:00\n\n시간이 종료되었습니다.\n당신은 시스템의 일부가 되었습니다.\n\n소원은 이루어졌습니다.\n그리고 당신은 영원히\n기리고 안에서 존재합니다.\n\n이것이 당신의 마지막 기억입니다.',
+};
+
+function getEndingText(type) {
+  if (type === 'C') {
+    const wish = getWishLabel();
+    return `24:00:00\n\n시간이 종료되었습니다.\n당신은 시스템의 일부가 되었습니다.\n\n소원은 이루어졌습니다.\n"${wish}" —\n그리고 당신은 영원히\n기리고 안에서 존재합니다.\n\n이것이 당신의 마지막 기억입니다.`;
+  }
+  return ENDING_TEXTS[type];
+}
+
+let endingRunId = 0;
+const endingTimers = new Set();
+
+function scheduleEnding(fn, ms) {
+  const id = setTimeout(() => {
+    endingTimers.delete(id);
+    fn();
+  }, ms);
+  endingTimers.add(id);
+  return id;
+}
+
+function clearEndingSchedule() {
+  endingTimers.forEach(id => clearTimeout(id));
+  endingTimers.clear();
+}
+
+function getEndingSharePhrase(type) {
+  if (type === 'A') return 'ENDING A로 살아남았습니다';
+  if (type === 'B') return 'ENDING B로 탈출했습니다';
+  return 'BAD ENDING에 빠졌습니다';
+}
+
+function buildEndingShareText(type) {
+  const wish = getWishLabel();
+  const link = window.location.href;
+  return `나의 소원 "${wish}" — ${getEndingSharePhrase(type)}. 당신도 기리고에서 살아남을 수 있나요? ${link}`;
+}
+
+async function shareEnding() {
+  const type = G.endingType || 'A';
+  const text = buildEndingShareText(type);
+  const link = window.location.href;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: '기리고 24:00',
+        text,
+        url: link,
+      });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    alert('공유 문구가 클립보드에 복사되었습니다.');
+  } catch {
+    alert('공유에 실패했습니다. 브라우저 설정을 확인해 주세요.');
+  }
+}
+
+function showEnding(type) {
+  G.gameOver = true;
+  G.endingType = type;
+  clearInterval(G.timerInterval);
+  clearEndingSchedule();
+  const runId = ++endingRunId;
+
+  const s5 = document.getElementById('scene-5');
+  s5.className = 'scene';
+  s5.classList.add(`ending-${type.toLowerCase()}`);
+  document.getElementById('ending-tag').textContent =
+    type==='A' ? 'ENDING A' : type==='B' ? 'ENDING B' : 'BAD ENDING';
+
+  const textEl = document.getElementById('ending-text');
+  const restartWrap = document.getElementById('restart-btn-wrap');
+  const restartBtn = document.getElementById('btn-restart-ending');
+  textEl.innerHTML = '';
+  restartWrap.classList.remove('visible');
+  if (restartBtn) restartBtn.textContent = type === 'A' ? '다시 소원을 빌다' : '다시 시작하기';
+
+  const wishEl = document.getElementById('ending-wish');
+  if (type === 'C') { wishEl.textContent = `"${getWishLabel()}"`; wishEl.style.display = 'block'; }
+  else wishEl.style.display = 'none';
+
+  const doType = () => {
+    if (runId !== endingRunId) return;
+    textEl.innerHTML = '';
+    restartWrap.classList.remove('visible');
+
+    const lines = getEndingText(type).split('\n');
+    let line=0, charInLine=0, curEl=null;
+    function nc() {
+      if (runId !== endingRunId) return;
+      if (line>=lines.length) {
+        scheduleEnding(() => {
+          if (runId !== endingRunId) return;
+          restartWrap.classList.add('visible');
+        }, 600);
+        return;
+      }
+      if (charInLine===0) {
+        if (!lines[line]) { textEl.appendChild(document.createElement('br')); line++; scheduleEnding(nc, 120); return; }
+        curEl = document.createElement('span'); textEl.appendChild(curEl);
+      }
+      if (charInLine<lines[line].length) {
+        curEl.textContent+=lines[line][charInLine++];
+        scheduleEnding(nc, type==='C'?30:22);
+      } else {
+        textEl.appendChild(document.createElement('br'));
+        line++; charInLine=0;
+        scheduleEnding(nc, type==='C'?60:150);
+      }
+    }
+    scheduleEnding(nc, 400);
+  };
+
+  const enterEnding = () => {
+    if (runId !== endingRunId) return;
+    textEl.innerHTML = '';
+    restartWrap.classList.remove('visible');
+    showScene(5, 'fade');
+    doType();
+  };
+
+  if (type === 'C') {
+    let f=0;
+    const flash = setInterval(()=>{
+      if (runId !== endingRunId) { clearInterval(flash); return; }
+      document.getElementById('phone-screen').style.background = f%2===0 ? 'rgba(200,56,42,0.5)' : '';
+      if(++f>=6){
+        clearInterval(flash);
+        document.getElementById('phone-screen').style.background='';
+        blackoutTransition(enterEnding);
+      }
+    },200);
+  } else if (type === 'B') {
+    const sc = document.getElementById('phone-screen');
+    sc.style.transition='background 0.3s'; sc.style.background='#fff';
+    scheduleEnding(() => {
+      if (runId !== endingRunId) return;
+      sc.style.background='#000';
+      scheduleEnding(() => {
+        if (runId !== endingRunId) return;
+        sc.style.background=''; sc.style.transition='';
+        enterEnding();
+      }, 800);
+    }, 300);
+  } else {
+    blackoutTransition(enterEnding);
+  }
+}
+
+function triggerEndingA()  { showEnding('A'); }
+function triggerEndingB()  { showEnding('B'); }
+function triggerBadEnding(){ if(!G.gameOver && currentScene!==4) showEnding('C'); }
+
+/* ── 재시작 ── */
+function restartGame() {
+  // ① 게임 상태 초기화
+  Object.assign(G, { wish:'', displayTime:86399, realElapsed:0, gameOver:false, cluesCollected:0 });
+  clearInterval(G.timerInterval); G.timerInterval = null;
+  wasDanger = false;
+
+  // ② 3D 루프 / AI / 입력 정리
+  if (ghostMoveTimer) { clearTimeout(ghostMoveTimer); ghostMoveTimer = null; }
+  if (mazeAnimFrame)  { cancelAnimationFrame(mazeAnimFrame); mazeAnimFrame = null; }
+  Object.assign(keysHeld, { up:false, down:false, left:false, right:false });
+  mazeExiting = false;
+  SFX.stopDrone();                         // 앰비언트 드론 정지
+  stopLoadingRoll();                       // 로딩 메시지 롤링 정지
+
+  // ② 소원 리뷰 오버레이 숨기기
+  document.getElementById('wish-reveal').classList.remove('show');
+
+  // ③ 공통 오버레이 초기화
+  redOverlay.style.background = 'rgba(200,56,42,0)';
+  document.getElementById('vignette').className = '';
+  const cf = document.getElementById('caught-flash');
+  cf.style.transition = 'none'; cf.style.background = 'transparent';
+  const cov = document.getElementById('caught-overlay');
+  if(cov) cov.classList.remove('show');
+
+  // ④ SCENE 1 (소원 입력) 초기화
+  wishInput.value = ''; wishInput.disabled = false;
+  wishBtn.style.display = ''; wishBtn.disabled = true;
+  const noiseL = document.getElementById('noise-layer');
+  noiseL.classList.remove('active'); noiseL.style.opacity = '0';
+  const cc = document.getElementById('char-counter');
+  cc.textContent = '0 / 80'; cc.classList.remove('warning');
+
+  // ⑤ SCENE 2 (카운트다운) 초기화
+  const mt = document.getElementById('main-timer');
+  mt.classList.remove('danger', 'timer-glitch-enter');
+  void mt.offsetWidth;  // reflow — 애니메이션 강제 리셋
+  mt.classList.add('timer-glitch-enter');
+  mt.textContent = '23:59:59'; mt.dataset.text = '23:59:59';
+  document.getElementById('warning-text').innerHTML = '';
+  document.getElementById('error-code').innerHTML = '';
+  document.getElementById('loading-wrap').style.display = 'none';
+  document.getElementById('start-btn-wrap').classList.remove('visible');
+
+  // ⑥ SCENE 3 (미로) HUD 초기화
+  const ht2 = document.getElementById('hud-timer');
+  ht2.textContent = '⏱ 23:59:59'; ht2.classList.remove('danger');
+  const hg = document.getElementById('hud-ghost');
+  hg.textContent = '👁 귀신: 교실 밖'; hg.classList.remove('close');
+  document.getElementById('clue-count').textContent = '0';
+  const popup = document.getElementById('clue-popup');
+  popup.classList.remove('show');
+
+  // ⑦ SCENE 4 (선택) 초기화
+  const ci = document.querySelector('#scene-4 .choice-intro');
+  if (ci) ci.innerHTML = '두 가지 선택이 있습니다.<br>신중하게 결정하십시오.';
+  document.getElementById('scene-4').classList.remove('danger');
+
+  // ⑧ SCENE 0 인트로 버튼
+  document.getElementById('intro-btn-wrap').classList.remove('visible');
+  // restart-btn-wrap 숨기기
+  clearEndingSchedule();
+  endingRunId++;
+  const restartWrapEl = document.getElementById('restart-btn-wrap');
+  restartWrapEl.classList.remove('visible');
+  const restartBtnEl = document.getElementById('btn-restart-ending');
+  if (restartBtnEl) restartBtnEl.textContent = '다시 시작하기';
+  G.endingType = '';
+
+  // ⑨ 인트로 애니메이션 상태 완전 초기화 후 블랙아웃 전환
+  blackoutTransition(() => {
+    const introSplash = document.getElementById('intro-splash');
+    const lockScreen  = document.getElementById('lock-screen');
+    const homeScreen  = document.getElementById('home-screen');
+    const appSplash   = document.getElementById('app-splash');
+    const flash       = document.getElementById('screen-on-flash');
+    const ti          = document.getElementById('touch-indicator');
+    const cellGirigo  = document.getElementById('cell-girigo');
+    const appCells    = homeScreen.querySelectorAll('.home-app-grid .app-cell');
+    const dock        = homeScreen.querySelector('.home-dock');
+
+    // intro-splash: 보이게 (display:none 해제 + 불투명)
+    introSplash.removeAttribute('style');
+    introSplash.style.display  = '';
+    introSplash.style.opacity  = '1';
+
+    // lock-screen: 투명 + 위치 초기화
+    lockScreen.style.transition = 'none';
+    lockScreen.style.opacity    = '0';
+    lockScreen.style.transform  = 'translateY(0)';
+
+    // home-screen: display:none 해제 + 투명 + 크기 초기화
+    homeScreen.style.display         = '';
+    homeScreen.style.opacity         = '0';
+    homeScreen.style.transform       = 'none';
+    homeScreen.style.transformOrigin = '50% 50%';
+    homeScreen.style.transition      = 'none';
+    homeScreen.style.pointerEvents   = 'none';
+
+    // app-splash: show / fadeout 클래스 제거
+    appSplash.classList.remove('show', 'fadeout');
+
+    // 기타 UI
+    flash.classList.remove('play');
+    ti.classList.remove('appear', 'press'); ti.style.opacity = '0';
+    if (cellGirigo) { cellGirigo.style.transition = ''; cellGirigo.style.transform = ''; }
+    appCells.forEach(c => c.classList.remove('reveal'));
+    if (dock) dock.classList.remove('reveal');
+
+    runIntroSequence();
+  });
+}
+
+/* 키보드 입력 — 3D 탈출 섹션에서 통합 처리 */
+
+/* ════════════════════════════════════════
+   인트로 애니메이션 시퀀스
+════════════════════════════════════════ */
+
+function initLockScreenClock() {
+  const now = new Date();
+  const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const days = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+  const months = now.getMonth()+1;
+  const date = now.getDate();
+  const day = days[now.getDay()];
+  document.getElementById('lock-time').textContent = timeStr;
+  document.getElementById('lock-date').textContent = `${months}월 ${date}일 ${day}`;
+  document.getElementById('hs-time').textContent = timeStr;
+}
+
+/* ════════════════════════════════════════
+   인트로 시퀀스
+   타임라인:
+   0.0s  검정 화면
+   0.8s  화면 켜짐 플래시
+   1.2s  잠금화면 페이드인
+   3.6s  위로 스와이프 → 홈화면 등장
+   4.0s  앱 아이콘 순차 등장
+   5.5s  터치 인디케이터 등장
+   5.9s  터치 누름 → launchApp()
+   6.1s  홈화면이 아이콘 위치에서 줌인
+   6.5s  앱 스플래시 등장
+   8.2s  스플래시 페이드 아웃
+   8.7s  SCENE 0 시작
+════════════════════════════════════════ */
+
+function runIntroSequence() {
+  initLockScreenClock();
+
+  const flash      = document.getElementById('screen-on-flash');
+  const lockScreen = document.getElementById('lock-screen');
+  const homeScreen = document.getElementById('home-screen');
+  const appCells   = homeScreen.querySelectorAll('.home-app-grid .app-cell');
+  const dock       = homeScreen.querySelector('.home-dock');
+
+  // 0.8s — 화면 켜짐 플래시
+  setTimeout(() => flash.classList.add('play'), 800);
+
+  // 1.2s — 잠금화면 페이드인
+  setTimeout(() => {
+    lockScreen.style.transition = 'opacity 0.55s ease';
+    lockScreen.style.opacity = '1';
+  }, 1200);
+
+  // 3.6s — 잠금 해제: 위로 슬라이드 업
+  setTimeout(() => {
+    lockScreen.style.transition = 'transform 0.44s cubic-bezier(0.32,0,0.08,1), opacity 0.35s ease';
+    lockScreen.style.transform  = 'translateY(-100%)';
+    lockScreen.style.opacity    = '0';
+
+    // 홈화면: 아래서 위로 슬라이드 인
+    homeScreen.style.transform  = 'translateY(28px)';
+    homeScreen.style.opacity    = '0';
+    homeScreen.style.transition = 'none';
+
+    setTimeout(() => {
+      homeScreen.style.pointerEvents = 'all';
+      homeScreen.style.transition = 'transform 0.42s cubic-bezier(0.2,0,0.3,1), opacity 0.38s ease';
+      homeScreen.style.transform  = 'translateY(0)';
+      homeScreen.style.opacity    = '1';
+
+      // 앱 아이콘 45ms 간격 순차 등장
+      appCells.forEach((cell, i) => {
+        setTimeout(() => cell.classList.add('reveal'), 60 + i * 45);
+      });
+      // 독은 마지막에
+      setTimeout(() => dock.classList.add('reveal'), 60 + appCells.length * 45 + 80);
+
+    }, 120);
+  }, 3600);
+
+  // 5.5s — 터치 인디케이터 등장
+  setTimeout(() => {
+    const cell  = document.getElementById('cell-girigo');
+    const box   = cell.querySelector('.app-icon-box');
+    const ti    = document.getElementById('touch-indicator');
+    const splash = document.getElementById('intro-splash');
+
+    const boxRect    = box.getBoundingClientRect();
+    const splashRect = splash.getBoundingClientRect();
+    ti.style.left = (boxRect.left + boxRect.width  / 2 - splashRect.left) + 'px';
+    ti.style.top  = (boxRect.top  + boxRect.height / 2 - splashRect.top)  + 'px';
+
+    ti.classList.remove('press');
+    ti.classList.add('appear');
+  }, 5500);
+
+  // 5.9s — 터치 누름
+  setTimeout(() => {
+    const ti   = document.getElementById('touch-indicator');
+    const cell = document.getElementById('cell-girigo');
+    ti.classList.remove('appear');
+    ti.classList.add('press');
+
+    // 셀 자체를 살짝 눌림
+    cell.style.transition = 'transform 0.14s ease';
+    cell.style.transform  = 'scale(0.88)';
+
+    setTimeout(launchApp, 160);
+  }, 5900);
+}
+
+function tapGirigoIcon() {
+  // 사용자가 직접 클릭했을 때도 동일하게 처리
+  const cell = document.getElementById('cell-girigo');
+  const ti   = document.getElementById('touch-indicator');
+  const box  = cell.querySelector('.app-icon-box');
+  const splash = document.getElementById('intro-splash');
+
+  const boxRect    = box.getBoundingClientRect();
+  const splashRect = splash.getBoundingClientRect();
+  ti.style.left = (boxRect.left + boxRect.width  / 2 - splashRect.left) + 'px';
+  ti.style.top  = (boxRect.top  + boxRect.height / 2 - splashRect.top)  + 'px';
+  ti.classList.remove('appear');
+  ti.classList.add('press');
+
+  cell.style.transition = 'transform 0.14s ease';
+  cell.style.transform  = 'scale(0.88)';
+  setTimeout(launchApp, 160);
+}
+
+function launchApp() {
+  const cell       = document.getElementById('cell-girigo');
+  const box        = cell.querySelector('.app-icon-box');
+  const homeScreen = document.getElementById('home-screen');
+  const appSplash  = document.getElementById('app-splash');
+  const introSplash= document.getElementById('intro-splash');
+  const phoneScreen= document.getElementById('phone-screen');
+
+  // 아이콘 셀 원위치
+  cell.style.transform = 'scale(1)';
+
+  // ─── 핵심: 아이콘 중심에서 홈화면 전체를 줌인 ───
+  const boxRect    = box.getBoundingClientRect();
+  const screenRect = phoneScreen.getBoundingClientRect();
+  const originX = (boxRect.left + boxRect.width  / 2 - screenRect.left) / screenRect.width  * 100;
+  const originY = (boxRect.top  + boxRect.height / 2 - screenRect.top)  / screenRect.height * 100;
+
+  homeScreen.style.transformOrigin = `${originX}% ${originY}%`;
+  homeScreen.style.transition = 'transform 0.38s cubic-bezier(0.28,0,0.08,1), opacity 0.28s ease 0.07s';
+  homeScreen.style.transform  = 'scale(16)';
+  homeScreen.style.opacity    = '0';
+
+  // 0.38s — 홈화면 완전히 사라지면 앱 스플래시 등장
+  setTimeout(() => {
+    homeScreen.style.display = 'none';
+
+    // 로딩바 재시작 (혹시 이미 재생 중이라면 리셋)
+    const bar = appSplash.querySelector('.splash-bar-fill');
+    if (bar) { bar.style.animation = 'none'; bar.offsetHeight; bar.style.animation = ''; }
+
+    appSplash.classList.add('show');
+  }, 380);
+
+  // 1.7s — 로딩 바 완성 직후 페이드 아웃
+  setTimeout(() => appSplash.classList.add('fadeout'), 1700);
+
+  // 2.3s — 인트로 전체 페이드 아웃 후 SCENE 0
+  setTimeout(() => {
+    introSplash.style.transition = 'opacity 0.45s ease';
+    introSplash.style.opacity    = '0';
+    setTimeout(() => {
+      introSplash.style.display = 'none';
+      startScene0();
+    }, 450);
+  }, 2300);
+}
+
+/* ════════════════════════════════════════
+   Web Audio System
+════════════════════════════════════════ */
+const SFX = (() => {
+  let ctx=null, masterGain, droneGain, droneOsc, footTimer=0;
+
+  function init(){
+    if(ctx)return;
+    try{
+      ctx=new(window.AudioContext||window.webkitAudioContext)();
+      masterGain=ctx.createGain(); masterGain.gain.value=0.32; masterGain.connect(ctx.destination);
+      droneGain=ctx.createGain(); droneGain.gain.value=0; droneGain.connect(masterGain);
+      droneOsc=ctx.createOscillator(); droneOsc.type='sawtooth'; droneOsc.frequency.value=52;
+      const filt=ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=160; filt.Q.value=5;
+      const lfo=ctx.createOscillator(); lfo.frequency.value=0.11;
+      const lfoG=ctx.createGain(); lfoG.gain.value=40;
+      lfo.connect(lfoG); lfoG.connect(filt.frequency);
+      droneOsc.connect(filt); filt.connect(droneGain);
+      droneOsc.start(); lfo.start();
+    }catch(e){}
+  }
+
+  function startDrone(){ init(); if(!droneGain)return; droneGain.gain.setTargetAtTime(0.22,ctx.currentTime,2); }
+  function stopDrone(){ if(!droneGain)return; droneGain.gain.setTargetAtTime(0,ctx.currentTime,0.8); }
+
+  function setGhostProximity(n){
+    if(!droneGain||!ctx)return;
+    droneGain.gain.setTargetAtTime(0.22+n*0.58,ctx.currentTime,0.35);
+    if(droneOsc) droneOsc.frequency.setTargetAtTime(52+n*32,ctx.currentTime,0.4);
+  }
+
+  function playStep(){
+    if(!ctx)return;
+    const t=ctx.currentTime; if(t-footTimer<0.34)return; footTimer=t;
+    const buf=ctx.createBuffer(1,ctx.sampleRate*0.06,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2.8)*0.35;
+    const s=ctx.createBufferSource(); s.buffer=buf;
+    const g=ctx.createGain(); g.gain.value=0.3;
+    s.connect(g); g.connect(masterGain); s.start();
+  }
+
+  function playCollect(){
+    if(!ctx)return;
+    [700,900,1120].forEach((f,i)=>setTimeout(()=>{
+      const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const g=ctx.createGain();
+      g.gain.setValueAtTime(0.16,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.45);
+      o.connect(g); g.connect(masterGain); o.start(); o.stop(ctx.currentTime+0.45);
+    },i*85));
+  }
+
+  function playCaught(){
+    if(!ctx)return;
+    const o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=155;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(0.65,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+1.4);
+    const ws=ctx.createWaveShaper();
+    const c=new Float32Array(256);
+    for(let i=0;i<256;i++){const x=i*2/255-1;c[i]=(3+20)*x*20/(Math.PI+20*Math.abs(x));}
+    ws.curve=c;
+    o.connect(ws); ws.connect(g); g.connect(masterGain);
+    o.start(); o.stop(ctx.currentTime+1.4);
+  }
+
+  return{init,startDrone,stopDrone,setGhostProximity,playStep,playCollect,playCaught};
+})();
+
+/* ════════════════════════════════════════
+   STEP 3 — Three.js 3D 학교 탈출
+════════════════════════════════════════ */
+
+/* ─── 전역 변수 ─── */
+let threeApp = null;   // {renderer, scene, camera}
+let schoolEnv  = null; // buildGirigoSchoolV3 반환값
+let mazeCanvas    = null;
+let mmCanvas      = null;
+let mmCtx         = null;
+let mazeAnimFrame = null;
+let mazeExiting   = false;
+let threeClockT   = 0;
+let ghostMoveTimer = null;
+
+const EYE_H    = 1.65;
+const MOVE_SPEED = 0.09;
+const ROT_SPEED  = 0.055;
+const PLAYER_R = 0.32;
+const DOOR_OPEN_DIST = 2.5;
+
+let player       = { x:0, z:-5, angle:0 }; /* angle=0 → +Z(복도) 방향 */
+let cluePositions = [];
+let ghosts        = [];
+const exitPos3d   = { x:0, z:51 };
+const keysHeld    = { up:false, down:false, left:false, right:false };
+
+const DOOR_Z = [5, 15, 25, 35];
+const DOOR_HALF = 0.86;
+
+const GHOST_CLASSROOMS = [
+  { id:'A', minX:-17, maxX:-5, minZ:2, maxZ:18, cx:-11, cz:10 },
+  { id:'B', minX:-17, maxX:-5, minZ:22, maxZ:38, cx:-11, cz:30 },
+  { id:'C', minX:5, maxX:17, minZ:2, maxZ:18, cx:11, cz:10 },
+  { id:'D', minX:5, maxX:17, minZ:22, maxZ:38, cx:11, cz:30 },
+];
+
+function nearClassDoor(z){
+  for(let i=0;i<DOOR_Z.length;i++){
+    if(Math.abs(z-DOOR_Z[i])<DOOR_HALF) return true;
+  }
+  return false;
+}
+
+/* ─── 이동 가능 영역 (설계도 v3.5 바닥 기준) ─── */
+function isWalkable(x,z){
+  const M=0.38;
+  const inX=(a,b)=>x>a+M&&x<b-M;
+  const inZ=(a,b)=>z>a+M&&z<b-M;
+  if(inX(-5,5)&&inZ(-8,52))    return true; /* 서버룸·복도·계단 (z축 일체) */
+  if(inX(-17,-5)&&inZ(2,18))   return true;
+  if(inX(-17,-5)&&inZ(22,38))  return true;
+  if(inX(5,17)&&inZ(2,18))     return true;
+  if(inX(5,17)&&inZ(22,38))    return true;
+  if(x>-5.9&&x<-4.1&&nearClassDoor(z)) return true;
+  if(x>4.1&&x<5.9&&nearClassDoor(z))   return true;
+  return false;
+}
+
+function circleHitsBox(px,pz,r,box){
+  const cx=Math.max(box.minX,Math.min(px,box.maxX));
+  const cz=Math.max(box.minZ,Math.min(pz,box.maxZ));
+  const dx=px-cx,dz=pz-cz;
+  return dx*dx+dz*dz<r*r;
+}
+
+function canOccupy(x,z){
+  if(!isWalkable(x,z)) return false;
+  if(schoolEnv&&schoolEnv.colliders){
+    for(const b of schoolEnv.colliders){
+      if(circleHitsBox(x,z,PLAYER_R,b)) return false;
+    }
+  }
+  if(schoolEnv&&schoolEnv.doors){
+    for(const d of schoolEnv.doors){
+      if(d.open<0.42&&d.collider&&circleHitsBox(x,z,PLAYER_R,d.collider)) return false;
+    }
+  }
+  return true;
+}
+
+function updateDoors(){
+  if(!schoolEnv||!schoolEnv.doors) return;
+  for(const d of schoolEnv.doors){
+    const dx=player.x-d.x,dz=player.z-d.z;
+    const dist=Math.sqrt(dx*dx+dz*dz);
+    const target=dist<DOOR_OPEN_DIST?1:0;
+    d.open+=(target-d.open)*0.14;
+    d.panel.rotation.y=d.hingeSign*d.open*d.maxOpen;
+  }
+}
+
+function createGhostTexture(){
+  const s=128,cv=document.createElement('canvas');
+  cv.width=s;cv.height=s;
+  const ctx=cv.getContext('2d');
+  const grd=ctx.createRadialGradient(s/2,s*0.55,4,s/2,s*0.55,s*0.55);
+  grd.addColorStop(0,'rgba(255,255,255,1)');
+  grd.addColorStop(0.35,'rgba(255,240,240,0.95)');
+  grd.addColorStop(0.7,'rgba(255,120,80,0.75)');
+  grd.addColorStop(1,'rgba(200,40,30,0.15)');
+  ctx.fillStyle=grd;
+  ctx.beginPath();
+  ctx.moveTo(s*0.5,s*0.08);
+  ctx.bezierCurveTo(s*0.86,s*0.12,s*0.92,s*0.5,s*0.78,s*0.66);
+  ctx.bezierCurveTo(s*0.72,s*0.92,s*0.58,s*0.98,s*0.5,s*0.96);
+  ctx.bezierCurveTo(s*0.42,s*0.98,s*0.28,s*0.92,s*0.22,s*0.66);
+  ctx.bezierCurveTo(s*0.08,s*0.5,s*0.14,s*0.12,s*0.5,s*0.08);
+  ctx.fill();
+  ctx.fillStyle='rgba(255,60,40,0.95)';
+  ctx.beginPath();ctx.ellipse(s*0.37,s*0.38,7,9,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(s*0.63,s*0.38,7,9,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.arc(s*0.37,s*0.38,3,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(s*0.63,s*0.38,3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#1a0000';
+  ctx.beginPath();ctx.arc(s*0.37,s*0.38,1.6,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(s*0.63,s*0.38,1.6,0,Math.PI*2);ctx.fill();
+  const tex=new THREE.CanvasTexture(cv);
+  tex.needsUpdate=true;
+  return tex;
+}
+
+function isInClassroom(x,z,room){
+  const M=0.38;
+  return x>room.minX+M&&x<room.maxX-M&&z>room.minZ+M&&z<room.maxZ-M;
+}
+
+function canGhostWalk(x,z,room){
+  return isWalkable(x,z)&&isInClassroom(x,z,room);
+}
+
+function createGhostEntity(scene,room,phase){
+  const x=room.cx,z=room.cz;
+  const tex=createGhostTexture();
+  const sheetMat=new THREE.MeshStandardMaterial({
+    map:tex,transparent:true,opacity:1,
+    emissive:new THREE.Color(0xff5533),emissiveIntensity:1.15,
+    side:THREE.DoubleSide,depthWrite:false,
+  });
+  const bodyMat=new THREE.MeshStandardMaterial({
+    color:0xfff8f8,transparent:true,opacity:0.55,
+    emissive:new THREE.Color(0xff4422),emissiveIntensity:0.85,
+  });
+  const group=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.36,0.5,12,1,true),bodyMat);
+  body.position.y=0.34;
+  group.add(body);
+  const sheet=new THREE.Mesh(new THREE.PlaneGeometry(1.28,1.55),sheetMat);
+  sheet.position.y=0.92;
+  group.add(sheet);
+  const wisp=new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.38),sheetMat.clone());
+  wisp.position.set(0,0.4,0.08);
+  wisp.rotation.x=0.25;
+  group.add(wisp);
+  const light=new THREE.PointLight(0xff4422,1.4,11);
+  light.position.y=0.95;
+  group.add(light);
+  group.position.set(x,0,z);
+  scene.add(group);
+  return{
+    x,z,phase,room,
+    group,sheet,wisp,sheetMat,light,
+    chasing:false,
+    angle:Math.random()*Math.PI*2,
+    speed:0.01,
+    wanderT:1.2+Math.random()*2.5,
+  };
+}
+
+/* ─── 단서 배치 ─── */
+function placeClues(){
+  cluePositions=[
+    {x:-11,z:10, id:0,collected:false,mesh:null},
+    {x:11, z:10, id:1,collected:false,mesh:null},
+    {x:-11,z:28, id:2,collected:false,mesh:null},
+  ];
+}
+
+/* ─── 씬 구성 (설계도 v3.5) ─── */
+function buildScene(scene){
+  if(typeof buildGirigoSchoolV3!=='function'){
+    console.error('girigo-school-v3.js 로드 실패');
+    return;
+  }
+  schoolEnv=buildGirigoSchoolV3(scene,{gameMode:true,skipMarkers:true});
+
+  const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+  function addMesh(geo,m,x,y,z){
+    const mesh=new THREE.Mesh(geo,m);
+    mesh.position.set(x,y,z);
+    scene.add(mesh);
+    return mesh;
+  }
+
+  cluePositions.forEach(c=>{
+    const mesh=addMesh(new THREE.SphereGeometry(.26,14,14),
+      new THREE.MeshStandardMaterial({color:0xf0c040,emissive:new THREE.Color(0x553300),emissiveIntensity:.85}),
+      c.x,.9,c.z);
+    c.mesh=mesh;
+  });
+
+  ghosts=GHOST_CLASSROOMS.map((room,i)=>createGhostEntity(scene,room,i*0.85));
+}
+
+/* ─── 이동 처리 ─── */
+function updateMovement(){
+  if(G.gameOver||mazeExiting) return;
+  if(keysHeld.left)  player.angle+=ROT_SPEED;
+  if(keysHeld.right) player.angle-=ROT_SPEED;
+  const moveFwd=keysHeld.up?1:(keysHeld.down?-1:0);
+  if(moveFwd){
+    SFX.playStep();
+    const s=MOVE_SPEED*moveFwd*(moveFwd>0?1:0.65);
+    const nx=player.x+Math.sin(player.angle)*s;
+    const nz=player.z+Math.cos(player.angle)*s;
+    if(canOccupy(nx,nz)){
+      player.x=nx; player.z=nz;
+    }else{
+      if(canOccupy(nx,player.z)) player.x=nx;
+      if(canOccupy(player.x,nz)) player.z=nz;
+    }
+  }
+  checkCollectClue(); checkExitProximity(); updateMazeProximity();
+}
+
+/* ─── 귀신 AI (교실 내만 배회, 입장 시 추적) ─── */
+function updateGhostPatrol(){
+  if(G.gameOver||mazeExiting||!ghosts.length) return;
+  const cam=threeApp&&threeApp.camera;
+  for(let i=0;i<ghosts.length;i++){
+    const g=ghosts[i];
+    const room=g.room;
+    const playerInside=isInClassroom(player.x,player.z,room);
+
+    if(playerInside){
+      g.chasing=true;
+      g.angle=Math.atan2(player.x-g.x,player.z-g.z);
+      g.speed=0.016;
+      const tryX=g.x+Math.sin(g.angle)*g.speed;
+      const tryZ=g.z+Math.cos(g.angle)*g.speed;
+      if(canGhostWalk(tryX,tryZ,room)){
+        g.x=tryX; g.z=tryZ;
+      }else{
+        g.angle+=Math.PI*0.45+(Math.random()-0.5)*0.5;
+      }
+    }else{
+      g.chasing=false;
+      g.wanderT-=0.022;
+      if(g.wanderT<=0){
+        g.angle+=(Math.random()-0.5)*1.1;
+        g.speed=0.006+Math.random()*0.005;
+        g.wanderT=2.2+Math.random()*3.8;
+      }
+      const tryX=g.x+Math.sin(g.angle)*g.speed;
+      const tryZ=g.z+Math.cos(g.angle)*g.speed;
+      if(canGhostWalk(tryX,tryZ,room)){
+        g.x=tryX; g.z=tryZ;
+      }else{
+        g.angle+=Math.PI*0.4+(Math.random()-0.5)*0.7;
+      }
+    }
+
+    const bob=0.72+Math.sin(threeClockT*2.2+g.phase)*0.2;
+    g.group.position.set(g.x,bob,g.z);
+    if(cam){
+      g.group.lookAt(cam.position.x,cam.position.y,g.group.position.z);
+    }
+    const pulse=0.9+Math.sin(threeClockT*3+g.phase)*0.1;
+    g.sheetMat.emissiveIntensity=g.chasing?1.65*pulse:1.1*pulse;
+    g.sheetMat.opacity=1;
+    if(g.light){
+      g.light.intensity=g.chasing?2.2+Math.sin(threeClockT*5)*0.4:1.4+Math.sin(threeClockT*2)*0.25;
+    }
+    if(g.wisp.material) g.wisp.material.emissiveIntensity=g.sheetMat.emissiveIntensity;
+    g.wisp.rotation.z=Math.sin(threeClockT*1.6+g.phase)*0.15;
+
+    if(g.chasing&&playerInside){
+      const pdx=player.x-g.x,pdz=player.z-g.z;
+      if(pdx*pdx+pdz*pdz<0.82*0.82){caughtByGhost();return;}
+    }
+  }
+}
+
+/* ─── 단서 수집 ─── */
+function checkCollectClue(){
+  for(const c of cluePositions){
+    if(c.collected) continue;
+    const dx=player.x-c.x,dz=player.z-c.z;
+    if(dx*dx+dz*dz<.8*.8){
+      c.collected=true; if(c.mesh) c.mesh.visible=false;
+      G.cluesCollected++;
+      document.getElementById('clue-count').textContent=String(G.cluesCollected);
+      showCluePopup(c.id);
+      if(G.cluesCollected>=3) setTimeout(showAllCluesUnlocked,3200);
+    }
+  }
+}
+
+/* ─── 출구 체크 ─── */
+function checkExitProximity(){
+  if(mazeExiting) return;
+  const dx=player.x-exitPos3d.x,dz=player.z-exitPos3d.z;
+  if(dx*dx+dz*dz<1.5*1.5&&G.cluesCollected>=3){
+    mazeExiting=true;
+    if(mazeAnimFrame){cancelAnimationFrame(mazeAnimFrame);mazeAnimFrame=null;}
+    SFX.stopDrone();
+    document.getElementById('vignette').className='';
+    setTimeout(()=>blackoutTransition(()=>goToScene4()),300);
+  }
+}
+
+/* ─── 귀신 근접 HUD ─── */
+function updateMazeProximity(){
+  let md=9999;
+  let anyChasing=false;
+  for(const g of ghosts){
+    if(!g.chasing) continue;
+    anyChasing=true;
+    const dx=g.x-player.x,dz=g.z-player.z;
+    const d=Math.sqrt(dx*dx+dz*dz);
+    if(d<md) md=d;
+  }
+  SFX.setGhostProximity(anyChasing?Math.max(0,1-md/10):0);
+  const ge=document.getElementById('hud-ghost'),ve=document.getElementById('vignette');
+  if(!anyChasing){
+    ge.textContent='👁 귀신: 교실 밖';
+    ge.classList.remove('close');
+    ve.className='';
+    return;
+  }
+  if(md<3){ge.textContent='👁 귀신: 매우 가까움!';ge.classList.add('close');ve.className='level2';}
+  else if(md<7){ge.textContent='👁 귀신: 추적 중...';ge.classList.remove('close');ve.className='level1';}
+  else{ge.textContent='👁 귀신: 감지됨';ge.classList.remove('close');ve.className='';}
+}
+
+/* ─── 미니맵 ─── */
+function drawMinimap3D(){
+  if(!mmCtx) return;
+  const W=mmCanvas.width,H=mmCanvas.height;
+  mmCtx.clearRect(0,0,W,H);
+  mmCtx.fillStyle='rgba(0,0,0,.75)'; mmCtx.fillRect(0,0,W,H);
+  const sx=W/34,sz=H/62,mx=x=>(x+17)*sx,mz=z=>(z+10)*sz;
+  [{x:-5,z:-8,w:10,d:8,c:'#2a1030'},{x:-5,z:0,w:10,d:44,c:'#1c1a12'},
+   {x:-17,z:2,w:12,d:16,c:'#0e1a22'},{x:-17,z:22,w:12,d:16,c:'#0e1a22'},
+   {x:5,z:2,w:12,d:16,c:'#0e2016'},{x:5,z:22,w:12,d:16,c:'#0e2016'},
+   {x:-5,z:44,w:10,d:8,c:'#0c1810'}].forEach(r=>{
+    mmCtx.fillStyle=r.c; mmCtx.fillRect(mx(r.x),mz(r.z),r.w*sx,r.d*sz);
+  });
+  cluePositions.forEach(c=>{
+    if(c.collected) return;
+    mmCtx.fillStyle='rgba(240,192,64,.9)'; mmCtx.beginPath();
+    mmCtx.arc(mx(c.x),mz(c.z),2.5,0,Math.PI*2); mmCtx.fill();
+  });
+  mmCtx.fillStyle=G.cluesCollected>=3?'rgba(74,158,255,.9)':'#112238';
+  mmCtx.fillRect(mx(exitPos3d.x)-3,mz(exitPos3d.z)-3,6,6);
+  for(const g of ghosts){
+    mmCtx.fillStyle='rgba(200,56,42,.9)'; mmCtx.beginPath();
+    mmCtx.arc(mx(g.x),mz(g.z),2.5,0,Math.PI*2); mmCtx.fill();
+  }
+  mmCtx.fillStyle='rgba(232,224,213,.95)'; mmCtx.beginPath();
+  mmCtx.arc(mx(player.x),mz(player.z),3.5,0,Math.PI*2); mmCtx.fill();
+  mmCtx.strokeStyle='rgba(232,224,213,.6)'; mmCtx.lineWidth=1.2;
+  mmCtx.beginPath();
+  mmCtx.moveTo(mx(player.x),mz(player.z));
+  mmCtx.lineTo(mx(player.x+Math.sin(player.angle)*4),mz(player.z+Math.cos(player.angle)*4));
+  mmCtx.stroke();
+}
+
+/* ─── 메인 루프 ─── */
+function mazeLoop(){
+  if(currentScene!==3){mazeAnimFrame=null;return;}
+  if(!threeApp){return;}
+  mazeAnimFrame=requestAnimationFrame(mazeLoop);
+  threeClockT+=.022;
+  updateMovement(); updateDoors(); updateGhostPatrol();
+  const cam=threeApp.camera;
+  cam.position.set(player.x,EYE_H,player.z);
+  cam.lookAt(
+    player.x+Math.sin(player.angle),
+    EYE_H,
+    player.z+Math.cos(player.angle)
+  );
+  cluePositions.forEach(c=>{
+    if(!c.mesh||c.collected) return;
+    c.mesh.position.y=.9+Math.sin(threeClockT*2.5)*.07;
+    if(c.mesh.material.emissive){
+      c.mesh.material.emissiveIntensity=.75+Math.sin(threeClockT*3)*.35;
+    }
+  });
+  if(schoolEnv&&schoolEnv.tick) schoolEnv.tick(threeClockT);
+  threeApp.renderer.render(threeApp.scene,threeApp.camera);
+  drawMinimap3D();
+}
+
+/* ─── D-Pad + 키보드 ─── */
+const MAZE_KEY_MAP={
+  ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',
+  w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right',
+  KeyW:'up',KeyS:'down',KeyA:'left',KeyD:'right',
+};
+function mazeKeyDir(e){ return MAZE_KEY_MAP[e.key]||MAZE_KEY_MAP[e.code]||null; }
+function dpadPress(dir){SFX.init();if(currentScene===3)keysHeld[dir]=true;}
+function dpadRelease(){keysHeld.up=keysHeld.down=keysHeld.left=keysHeld.right=false;}
+document.addEventListener('keydown',e=>{
+  if(currentScene!==3) return;
+  const dir=mazeKeyDir(e);
+  if(!dir) return;
+  e.preventDefault();
+  SFX.init();
+  keysHeld[dir]=true;
+});
+document.addEventListener('keyup',e=>{
+  if(currentScene!==3) return;
+  const dir=mazeKeyDir(e);
+  if(!dir) return;
+  e.preventDefault();
+  keysHeld[dir]=false;
+});
+
+/* ─── 단서/탈출 팝업 ─── */
+const CLUE_DATA = {
+  0: {
+    title: '🔍 단서 · 잔해',
+    text: '깨진 명패.\n"욕망은 등록되면 되돌릴 수 없다."\n누군가 필사한 흔적이 남아 있다.',
+  },
+  1: {
+    title: '🔍 단서 · 기록',
+    text: '오래된 메모 조각.\n시스템 로그에 이름이 새겨져 있다.',
+  },
+  2: {
+    title: '🔍 단서 · 결계',
+    text: '바닥에 새겨진 문장.\n"세 번의 단서가 모이면 출구가 열린다."',
+  },
+};
+
+function getCluePopupContent(id) {
+  const base = CLUE_DATA[id];
+  if (!base) return { title: '🔍 단서 발견', text: '' };
+  if (id === 1) {
+    const snippet = getWishSnippet(10);
+    return {
+      title: base.title,
+      text: `오래된 메모 조각.\n...그것은 바로 '${snippet}...'를 원했던 자의 기록이다`,
+    };
+  }
+  return { title: base.title, text: base.text };
+}
+
+function showCluePopup(id){
+  SFX.playCollect();
+  const p=document.getElementById('clue-popup');
+  const content = getCluePopupContent(id);
+  document.getElementById('clue-popup-title').textContent = content.title;
+  document.getElementById('clue-popup-text').textContent = content.text;
+  p.classList.add('show'); setTimeout(()=>p.classList.remove('show'),3000);
+}
+function showAllCluesUnlocked(){
+  if(currentScene!==3) return;
+  const p=document.getElementById('clue-popup');
+  document.getElementById('clue-popup-title').textContent='🔓 출구 잠금 해제';
+  document.getElementById('clue-popup-text').textContent='단서를 모두 수집했습니다.\n미니맵의 파란 점을 향해\n탈출하세요.';
+  p.classList.add('show'); setTimeout(()=>p.classList.remove('show'),4500);
+  const cf=document.getElementById('caught-flash');
+  cf.style.background='rgba(74,158,255,.38)'; cf.style.opacity='1';
+  setTimeout(()=>{cf.style.opacity='0';setTimeout(()=>{cf.style.background='rgba(200,56,42,.7)';},600);},550);
+}
+
+/* ─── initMaze ─── */
+function initMaze(){
+  if(typeof THREE==='undefined'||typeof buildGirigoSchoolV3==='undefined'){
+    setTimeout(initMaze,300);return;
+  }
+
+  mazeCanvas=document.getElementById('maze-canvas');
+  if(!mazeCanvas) return;
+
+  // 크기: phone-screen 기반
+  const ps=document.getElementById('phone-screen');
+  const hud=document.getElementById('hud');
+  const W=ps.offsetWidth||ps.clientWidth||390;
+  const hudH=hud?hud.offsetHeight||88:88;
+  const H=Math.max((ps.offsetHeight||ps.clientHeight||760)-hudH,300);
+
+  // 렌더러 (재사용 또는 신규)
+  let renderer,scene,camera;
+  if(threeApp&&threeApp.renderer){
+    renderer=threeApp.renderer;
+    renderer.setSize(W,H);
+  } else {
+    renderer=new THREE.WebGLRenderer({canvas:mazeCanvas,antialias:true});
+    renderer.setSize(W,H);
+    renderer.shadowMap.enabled=true;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=0.88;
+  }
+  renderer.setClearColor(0x06060a,1);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x1e1e1c);
+  scene.fog=new THREE.FogExp2(0x1a1a18,.0045);
+  schoolEnv=null;
+  camera=new THREE.PerspectiveCamera(75,W/H,.1,200);
+
+  threeApp={renderer,scene,camera};
+
+  // 미니맵
+  if(!mmCanvas){
+    mmCanvas=document.createElement('canvas');
+    mmCanvas.width=70; mmCanvas.height=140;
+    mmCanvas.style.cssText='position:absolute;bottom:150px;right:12px;z-index:15;border-radius:3px;border:1px solid rgba(200,56,42,.22);opacity:.85;pointer-events:none;';
+    document.getElementById('scene-3').appendChild(mmCanvas);
+    mmCtx=mmCanvas.getContext('2d');
+  }
+
+  // 상태 초기화
+  player={x:0,z:-5,angle:0};
+  mazeExiting=false; G.cluesCollected=0;
+  document.getElementById('clue-count').textContent='0';
+  const gh=document.getElementById('hud-ghost');
+  if(gh){gh.textContent='👁 귀신: 교실 밖';gh.classList.remove('close');}
+  document.getElementById('vignette').className='';
+  Object.assign(keysHeld,{up:false,down:false,left:false,right:false});
+
+  placeClues();
+  buildScene(scene);
+
+  mazeCanvas.setAttribute('tabindex','0');
+  mazeCanvas.focus({ preventScroll:true });
+
+  if(mazeAnimFrame) cancelAnimationFrame(mazeAnimFrame);
+  mazeLoop();
+  SFX.startDrone();
+}
+
+function startGhostAI(){}
+
+/* ─── 포획 ─── */
+function caughtByGhost(){
+  if(G.gameOver) return;
+  G.gameOver=true;
+  if(mazeAnimFrame){cancelAnimationFrame(mazeAnimFrame);mazeAnimFrame=null;}
+  if(ghostMoveTimer){clearTimeout(ghostMoveTimer);ghostMoveTimer=null;}
+  SFX.playCaught(); SFX.stopDrone();
+  const cf=document.getElementById('caught-flash');
+  let fc=0;
+  const fl=setInterval(()=>{
+    cf.style.opacity=fc%2===0?'0.88':'0.15';
+    if(++fc>=8){
+      clearInterval(fl); cf.style.opacity='0';
+      const gh=document.getElementById('hud-ghost');
+      if(gh){gh.textContent='👁 포획됨';gh.classList.add('close');}
+      setTimeout(()=>{
+        const ov=document.getElementById('caught-overlay');
+        if(ov) ov.classList.add('show');
+      },800);
+    }
+  },140);
+}
+
+
+
+/* ── 초기화 ── */
+window.addEventListener('load', runIntroSequence);
+</script>
+</body>
+</html>

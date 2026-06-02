@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>기리고 학교 설계도 v3.5</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06060a;overflow:hidden}
+canvas{display:block}
+#ui{position:fixed;top:0;right:0;width:200px;height:100vh;
+  background:rgba(5,5,10,.94);border-left:1px solid rgba(255,255,255,.06);
+  padding:16px 13px;overflow-y:auto;z-index:10;color:#c0b8b0;font-family:'Segoe UI',sans-serif}
+h1{font-size:10px;color:#c8382a;letter-spacing:.16em;text-transform:uppercase;margin-bottom:14px}
+.sec{margin-bottom:12px}
+.st{font-size:9px;color:#353028;letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.04);padding-bottom:3px}
+.btn{display:block;width:100%;padding:5px 9px;margin-bottom:3px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:3px;color:#4a4438;font-size:11px;cursor:pointer;text-align:left;transition:all .14s}
+.btn:hover,.btn.on{background:rgba(200,56,42,.13);border-color:rgba(200,56,42,.38);color:#ff6858}
+.leg{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:10px;color:#404038}
+.dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+#lbl{position:fixed;top:14px;left:14px;font-size:10px;color:rgba(200,56,42,.45);letter-spacing:.14em;text-transform:uppercase}
+#hint{position:fixed;bottom:12px;left:calc(50% - 110px);font-size:9px;color:#262018;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="lbl">기리고 학교 설계도 v3.5</div>
+<div id="hint">드래그: 회전  |  우클릭: 이동  |  스크롤: 줌</div>
+<div id="ui">
+  <h1>설계도 v3.5</h1>
+  <div class="sec">
+    <div class="st">시점</div>
+    <button class="btn on" id="v-iso"  onclick="setV('iso')">아이소메트릭</button>
+    <button class="btn"    id="v-top"  onclick="setV('top')">평면도</button>
+    <button class="btn"    id="v-hall" onclick="setV('hall')">복도 내부</button>
+    <button class="btn"    id="v-cls"  onclick="setV('cls')">교실 내부</button>
+  </div>
+  <div class="sec">
+    <div class="st">레이어</div>
+    <button class="btn on" id="t-roof"   onclick="tog('roof')">지붕 숨기기</button>
+    <button class="btn on" id="t-furn"   onclick="tog('furn')">가구</button>
+    <button class="btn on" id="t-marker" onclick="tog('marker')">게임 마커</button>
+  </div>
+  <div class="sec">
+    <div class="st">구조</div>
+    <div class="leg"><div class="dot" style="background:#2a1030"></div>서버룸</div>
+    <div class="leg"><div class="dot" style="background:#1c1a12"></div>복도</div>
+    <div class="leg"><div class="dot" style="background:#0e1a22"></div>교실 A·B (좌)</div>
+    <div class="leg"><div class="dot" style="background:#0e2016"></div>교실 C·D (우)</div>
+    <div class="leg"><div class="dot" style="background:#0c1810"></div>탈출 계단</div>
+    <div style="height:6px"></div>
+    <div class="leg"><div class="dot" style="background:#fff"></div>플레이어</div>
+    <div class="leg"><div class="dot" style="background:#f0c040"></div>단서 3개</div>
+    <div class="leg"><div class="dot" style="background:#c8382a"></div>귀신 순찰</div>
+    <div class="leg"><div class="dot" style="background:#4a9eff"></div>탈출구</div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+const cv = document.getElementById('cv');
+const RW = window.innerWidth-200, RH = window.innerHeight;
+const renderer = new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setSize(RW,RH);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.setClearColor(0x06060a);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=0.92;
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x06060a,0.006);
+const cam=new THREE.PerspectiveCamera(52,RW/RH,0.1,300);
+
+const LYR={roof:[],furn:[],marker:[]};
+const LON={roof:false,furn:true,marker:true};
+const H=4.0, DW=1.7;
+
+/* ======================================================
+   재질 — 순수 플랫 컬러 (텍스처 없음)
+   실제 한국 학교 색상 팔레트
+   ====================================================== */
+function ms(c,rough,metal,ei,ec){
+  const m=new THREE.MeshStandardMaterial({color:c,roughness:rough||.88,metalness:metal||.06});
+  if(ei){m.emissive=new THREE.Color(ec||c);m.emissiveIntensity=ei;}
+  return m;
+}
+
+const M={
+  /* 바닥 — 테라조 느낌 (약간 광택) */
+  fCor: ms(0x4a4540,.28,.08),   /* 복도: 회갈색 테라조 */
+  fCls: ms(0x3a4250,.30,.07),   /* 교실A/B: 청회 */
+  fClR: ms(0x3a5044,.30,.07),   /* 교실C/D: 청녹 */
+  fSrv: ms(0x2e2040,.38,.06),   /* 서버룸: 어두운 보라 */
+  fEx:  ms(0x243228,.36,.06),   /* 탈출 */
+  /* 벽 하단: 세이지 그린 (실제 학교 초록) */
+  wLo:  ms(0x4a7050,.92,.03),
+  /* 벽 상단: 크림 오프화이트 */
+  wHi:  ms(0x6e6858,.92,.03),
+  /* 서버룸 벽 */
+  wSrv: ms(0x3a2255,.90,.03),
+  /* 탈출 벽 */
+  wEx:  ms(0x284832,.90,.03),
+  /* 천장 */
+  ceil: ms(0x1e1e1c,.95,.02),
+  /* 걸레받이 / 몰딩 */
+  skirt:ms(0x1a1a18,.85,.04),
+  mold: ms(0x555048,.80,.05),
+  /* 유리 파티션 */
+  glPt: new THREE.MeshStandardMaterial({color:0x9abecc,transparent:true,opacity:.16,roughness:.04,metalness:.08,side:THREE.DoubleSide}),
+  /* 창문 유리 — 주간 하늘빛 발광 */
+  glWin:new THREE.MeshStandardMaterial({color:0xb8d8f0,transparent:true,opacity:.55,roughness:.02,metalness:.1,
+         emissive:new THREE.Color(0x7ab4d8),emissiveIntensity:.65,side:THREE.DoubleSide}),
+  /* 창문 프레임 금속 */
+  winFr:ms(0x8a9298,.40,.55),
+  /* 창문 바깥 하늘 플레인 */
+  sky:  new THREE.MeshStandardMaterial({color:0x6090b8,emissive:new THREE.Color(0x4070a0),emissiveIntensity:.5,side:THREE.DoubleSide}),
+  /* 유리 파티션 프레임 */
+  frm:  ms(0x686868,.35,.60),
+  /* 가구 */
+  wood: ms(0x7a4c1c,.72,.04),
+  dkLg: ms(0x2e1e08,.85,.04),
+  chr:  ms(0x1a2e72,.80,.05),
+  chBk: ms(0x162880,.80,.05),
+  bkR:  ms(0x7a1818,.82,.04), bkB:ms(0x183878,.82,.04), bkG:ms(0x185028,.82,.04),
+  board:ms(0x071507,.90,.02), bFrm:ms(0x2a1606,.80,.04), chalk:ms(0xb0a890,.88,.02),
+  lkBdy:ms(0x22303a,.60,.25), lkHd:ms(0x506070,.35,.55),
+  notBd:ms(0x3a2a16,.85,.03), notPp:ms(0xc8b878,.88,.02),
+  signPl:ms(0x3a5a6e,.55,.22),
+  ext:  ms(0xb02818,.80,.10), extH:ms(0xb0b0b0,.30,.60),
+  srv:  ms(0x121218,.70,.20),
+  srvR: ms(0,1.6,0,1.6,0xc8382a), srvG:ms(0,1.0,0,1.0,0x44ff44),
+  srvB: ms(0,.8,0,.8,0x2266ff),
+  mon:  ms(0x141414,.60,.30), monS:ms(0x001828,.20,.1,0.35,0x003366),
+  dFrm: ms(0x1e1810,.82,.04),
+  dGls: new THREE.MeshStandardMaterial({color:0x4488aa,transparent:true,opacity:.22}),
+  hdl:  ms(0x707888,.20,.75),
+  step: ms(0x1a2018,.85,.04), rail:ms(0x384840,.35,.55), nosk:ms(0x303820,.85,.04),
+  fluor:ms(0,3.2,0,3.2,0xfffde0), flHs:ms(0x262626,.70,.10),
+  emer: ms(0,2.8,0,2.8,0xff2200),
+  mPl:  ms(0,.1,0,.95,0xffffff),
+  mCl:  ms(0,.1,0,.85,0xf0c040),
+  mGh:  new THREE.MeshStandardMaterial({color:0xc8382a,transparent:true,opacity:.7,emissive:new THREE.Color(0xc8382a),emissiveIntensity:.6}),
+  mEx:  new THREE.MeshStandardMaterial({color:0x4a9eff,transparent:true,opacity:.8,emissive:new THREE.Color(0x4a9eff),emissiveIntensity:.8}),
+};
+
+const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+const Cy=(r,h,s)=>new THREE.CylinderGeometry(r,r,h,s||10);
+const Sp=(r,s)=>new THREE.SphereGeometry(r,s||12,s||8);
+function add(geo,mat,x,y,z,ry,grp){
+  const m=new THREE.Mesh(geo,mat);
+  m.position.set(x,y,z); if(ry)m.rotation.y=ry;
+  m.castShadow=m.receiveShadow=true; scene.add(m);
+  if(grp)LYR[grp].push(m); return m;
+}
+function pl(x,y,z,c,i,d){const l=new THREE.PointLight(c,i,d||22);l.position.set(x,y,z);scene.add(l);return l;}
+
+/* ---- 조명 ---- */
+scene.add(new THREE.AmbientLight(0x445566,0.62));
+const svL=pl(0,3,-4,0xff2200,1.8,16);
+const flkL=pl(0,H-.28,16,0xddeeff,0.9,24);
+[3,9,16,23,30,37,43].forEach(z=>{
+  pl(0,H-.28,z,0xddeeff,0.92,24);
+  add(B(.2,.07,1.3),M.flHs,0,H-.04,z);
+  add(B(.14,.04,1.2),M.fluor,0,H-.08,z);
+});
+[[-11,8],[-11,14],[-11,26],[-11,32],[11,8],[11,14],[11,26],[11,32]].forEach(([x,z])=>{
+  pl(x,H-.28,z,0xbbccee,1.0,24);
+  add(B(.18,.06,1.0),M.flHs,x,H-.04,z);
+  add(B(.12,.04,.9),M.fluor,x,H-.08,z);
+});
+const exL=pl(0,3,48,0x44ff88,1.8,20);
+
+/* ---- 창문 조명 (교실 외벽에서 들어오는 창빛) ---- */
+[[-14,8],[-14,14],[-14,26],[-14,32],[14,8],[14,14],[14,26],[14,32]].forEach(([x,z])=>{
+  pl(x,2.2,z,0x90c0e0,0.55,12);
+});
+
+/* ---- 바닥 ---- */
+add(B(10,.12,8), M.fSrv,0,0,-4);   add(B(10,.12,44),M.fCor,0,0,22);
+add(B(12,.12,16),M.fCls,-11,0,10); add(B(12,.12,16),M.fCls,-11,0,30);
+add(B(12,.12,16),M.fClR, 11,0,10); add(B(12,.12,16),M.fClR, 11,0,30);
+add(B(10,.12,8), M.fEx,  0,0,48);
+
+/* ---- 천장 ---- */
+function ceil(w,d,x,z){add(B(w,.1,d),M.ceil,x,H,z,0,'roof');}
+ceil(10,8,0,-4); ceil(10,44,0,22);
+ceil(12,16,-11,10); ceil(12,16,-11,30);
+ceil(12,16, 11,10); ceil(12,16, 11,30); ceil(10,8,0,48);
+
+/* ---- 2톤 벽 헬퍼 ---- */
+function w2(W,D,mLo,mHi,x,z,ry){
+  const lo=H*.44,hi=H-lo;
+  add(B(W,lo,D),mLo,x,lo/2,z,ry||0);
+  add(B(W,hi,D),mHi,x,lo+hi/2,z,ry||0);
+  const ml=new THREE.Mesh(B(W,.05,.09),M.mold);
+  ml.position.set(x,lo+.025,z); if(ry)ml.rotation.y=ry; scene.add(ml);
+  const sk=new THREE.Mesh(B(W,.1,.06),M.skirt);
+  sk.position.set(x,.06,z); if(ry)sk.rotation.y=ry; scene.add(sk);
+}
+
+/* ---- 창문 (교실 외벽 대형 창) ----
+   한국 학교식: 거의 천장까지 오는 넓은 창 + 외부 하늘 표현  */
+function bigWindow(x,z,ry){
+  const wx=2.8, wy=2.6, wz=.06;
+  /* 바깥 하늘 플레인 (창 너머 배경) */
+  const skyOffset = ry ? 0 : (x>0 ? .35 : -.35);
+  const skyPlane=new THREE.Mesh(B(wx+.2,wy+.2,.02),M.sky);
+  skyPlane.position.set(x+skyOffset,1.5+wy/2,z); if(ry)skyPlane.rotation.y=ry;
+  scene.add(skyPlane);
+  /* 유리 */
+  add(B(wx,wy,wz),M.glWin,x,1.5+wy/2,z,ry);
+  /* 창틀 외곽 */
+  add(B(wx+.12,wy+.14,.08),M.winFr,x,1.5+wy/2,z,ry);
+  /* 가로 중간 살 */
+  add(B(wx,.04,.1),M.winFr,x,1.5+wy*.5,z,ry);
+  add(B(wx,.04,.1),M.winFr,x,1.5+wy*.25,z,ry);
+  /* 세로 살 2개 */
+  add(B(.04,wy,.1),M.winFr,x-(ry?0:wx*.28),1.5+wy/2,z+(ry?wx*.28:0),ry);
+  add(B(.04,wy,.1),M.winFr,x+(ry?0:wx*.28),1.5+wy/2,z-(ry?wx*.28:0),ry);
+  /* 창대 (windowsill) */
+  add(B(wx+.18,.1,.3),M.winFr,x,1.48,z,ry);
+  /* 창빛 포인트 라이트는 조명 섹션에서 처리 */
+}
+
+/* ---- 복도-교실 경계: 유리 파티션 구조 ---- */
+function glassPartition(segLen,cx,xSide){
+  if(segLen<.1) return;
+  const loH=H*.44, glH=H-loH-.05;
+  add(B(.1,loH,segLen),M.wLo,xSide,loH/2,cx);
+  const sk2=new THREE.Mesh(B(.1,.1,segLen),M.skirt);
+  sk2.position.set(xSide,.06,cx); scene.add(sk2);
+  const ml2=new THREE.Mesh(B(.1,.05,segLen),M.mold);
+  ml2.position.set(xSide,loH+.025,cx); scene.add(ml2);
+  const cnt=Math.max(1,Math.round(segLen/1.4));
+  const sw=segLen/cnt;
+  for(let i=0;i<cnt;i++){
+    const gz=cx-segLen/2+(i+.5)*sw;
+    add(B(.05,glH-.06,sw-.07),M.glPt,xSide,loH+glH/2,gz);
+    add(B(.07,glH,.06),M.frm,xSide,loH+glH/2,gz-sw/2);
+  }
+  add(B(.07,glH,.06),M.frm,xSide,loH+glH/2,cx+segLen/2);
+  add(B(.07,.055,segLen),M.frm,xSide,loH,cx);
+  add(B(.07,.055,segLen),M.frm,xSide,loH+glH,cx);
+}
+
+/* 문 위 트랜섬 — 유리 파티션과 동일한 프레임·유리 */
+function doorHeaderX(xSide,z){
+  const loH=H*.44,glH=H-loH-.05,doorTop=2.5,transH=H-doorTop-.06,w=DW;
+  add(B(.07,.055,w+.08),M.frm,xSide,loH+glH,z);
+  if(transH<.1) return;
+  add(B(.05,transH-.1,w-.1),M.glPt,xSide,doorTop+transH/2+.02,z);
+  add(B(.08,.06,w+.1),M.frm,xSide,doorTop+.03,z);
+  add(B(.07,transH,.06),M.frm,xSide,doorTop+transH/2,z-w/2-.04);
+  add(B(.07,transH,.06),M.frm,xSide,doorTop+transH/2,z+w/2+.04);
+}
+function doorHeaderZ(x,z){
+  const loH=H*.44,glH=H-loH-.05,doorTop=2.5,transH=H-doorTop-.06,w=DW;
+  add(B(w+.08,.055,.07),M.frm,x,loH+glH,z);
+  if(transH<.1) return;
+  add(B(w-.1,transH-.1,.05),M.glPt,x,doorTop+transH/2+.02,z);
+  add(B(w+.1,.06,.08),M.frm,x,doorTop+.03,z);
+  add(B(transH,.07,.06),M.frm,x-w/2-.04,doorTop+transH/2,z);
+  add(B(transH,.07,.06),M.frm,x+w/2+.04,doorTop+transH/2,z);
+}
+
+/* ---- 서버룸 벽 ---- */
+const sw=(10-DW)/2;
+w2(10,.12,M.wSrv,M.wSrv,0,-8);
+w2(.12,8,M.wSrv,M.wSrv,-5,-4); w2(.12,8,M.wSrv,M.wSrv,5,-4);
+w2(sw,.12,M.wSrv,M.wSrv,-(DW/2+sw/2),0); w2(sw,.12,M.wSrv,M.wSrv,(DW/2+sw/2),0);
+doorHeaderZ(0,0);
+
+/* ---- 복도 벽 (유리 파티션) ---- */
+function buildCorrWall(xSide){
+  const dz=[5,15,25,35],dh=DW/2;
+  let p=0;
+  dz.forEach(dz2=>{
+    glassPartition(dz2-dh-p,p+(dz2-dh-p)/2,xSide);
+    doorHeaderX(xSide,dz2);
+    p=dz2+dh;
+  });
+  glassPartition(44-p,p+(44-p)/2,xSide);
+}
+buildCorrWall(-5); buildCorrWall(5);
+
+/* 복도→탈출 */
+w2(sw,.12,M.wLo,M.wHi,-(DW/2+sw/2),44); w2(sw,.12,M.wLo,M.wHi,(DW/2+sw/2),44);
+doorHeaderZ(0,44);
+
+/* ---- 교실 외벽 ---- */
+/* 앞/뒤벽: 솔리드 */
+[2,18,22,38].forEach(z=>{
+  w2(12,.12,M.wLo,M.wHi,-11,z); w2(12,.12,M.wLo,M.wHi,11,z);
+});
+/* 외벽: 창문 사이 솔리드 구간 + 대형 창문 */
+function classroomOuterWall(xOut,zFrom,zTo){
+  /* 창문 3개: z위치 = zFrom+4, zFrom+8, zFrom+12 */
+  const winZ=[zFrom+4,zFrom+8,zFrom+12];
+  const ry=xOut>0?Math.PI/2:-Math.PI/2;
+  /* 창문 사이 벽 구간 */
+  let prev=zFrom;
+  winZ.forEach(wz=>{
+    const gapStart=wz-1.55, gapEnd=wz+1.55;
+    const seg1=gapStart-prev;
+    if(seg1>.05) w2(.12,seg1,M.wLo,M.wHi,xOut,prev+seg1/2,ry);
+    bigWindow(xOut,wz,ry);
+    prev=gapEnd;
+  });
+  const segLast=zTo-prev;
+  if(segLast>.05) w2(.12,segLast,M.wLo,M.wHi,xOut,prev+segLast/2,ry);
+}
+classroomOuterWall(-17,2,18); classroomOuterWall(-17,22,38);
+classroomOuterWall( 17,2,18); classroomOuterWall( 17,22,38);
+
+/* 탈출 */
+w2(10,.12,M.wEx,M.wEx,0,52);
+w2(.12,8,M.wEx,M.wEx,-5,48); w2(.12,8,M.wEx,M.wEx,5,48);
+w2(sw,.12,M.wEx,M.wEx,-(DW/2+sw/2),44); w2(sw,.12,M.wEx,M.wEx,(DW/2+sw/2),44);
+
+/* ---- 문 ---- */
+function door(x,z,ry){
+  add(B(1.7,2.5,.07),M.wood,x,1.25,z,ry);
+  add(B(1.9,2.7,.05),M.dFrm,x,1.35,z,ry);
+  add(B(1.7,.58,.04),M.dGls,x,2.28,z,ry);
+  add(B(.07,.07,.16),M.hdl,x+(ry?0:.78),1.25,z+(ry?.78:0),ry);
+}
+function roomPlate(xSide,z){
+  const xo=xSide<0?-0.045:0.045;
+  add(B(.018,.075,.34),M.signPl,xSide+xo,2.68,z,Math.PI/2);
+}
+door(0,-.06);
+[5,15,25,35].forEach(z=>{door(-5,z,Math.PI/2);door(5,z,Math.PI/2);});
+door(0,43.96);
+
+/* ---- 칠판 ---- */
+function board(cx,z,ry){
+  add(B(6.0,1.9,.08),M.board,cx,2.65,z,ry);
+  add(B(6.2,2.1,.05),M.bFrm,cx,2.65,z,ry);
+  add(B(6.0,.08,.14),M.bFrm,cx,1.64,z+(ry?0:.07),ry);
+  add(B(3.5,.55,.03),M.chalk,cx,2.72,z+(ry?0:.05),ry);
+  add(B(6.0,.06,.12),M.bFrm,cx,1.64,z+(ry?0:.12),ry);
+}
+board(-11,2.08); board(-11,22.08);
+board(11,1.92,Math.PI); board(11,21.92,Math.PI);
+
+/* ---- 교탁 ---- */
+function pod(cx,z){
+  add(B(1.9,.08,1.0),M.wood,cx,.82,z);
+  [[-0.85,.45],[.85,.45],[-.85,-.45],[.85,-.45]].forEach(([dx,dz])=>
+    add(B(.07,.82,.07),M.dkLg,cx+dx,.41,z+dz));
+}
+pod(-11,3.8); pod(-11,23.8); pod(11,3.8); pod(11,23.8);
+
+/* ---- 책상+의자 ---- */
+function desk(x,z){
+  add(B(1.18,.06,.64),M.wood,x,.78,z,0,'furn');
+  [[-0.5,.28],[.5,.28],[-.5,-.28],[.5,-.28]].forEach(([dx,dz])=>
+    add(B(.05,.78,.05),M.dkLg,x+dx,.39,z+dz,0,'furn'));
+  add(B(.5,.05,.5),M.chr,x,.47,z+.72,0,'furn');
+  add(B(.5,.45,.05),M.chBk,x,.72,z+.97,0,'furn');
+  [[-0.2,.24],[.2,.24],[-.2,-.24],[.2,-.24]].forEach(([dx,dz])=>
+    add(B(.04,.47,.04),M.dkLg,x+dx,.235,z+.72+dz,0,'furn'));
+  const r=Math.abs(Math.sin(x*z+1));
+  if(r>.22) add(B(.18,.22,.28),r<.33?M.bkR:r<.66?M.bkB:M.bkG,x+(r-.5)*.3,.81,z-.1,0,'furn');
+}
+[-15,-11.5,-8].forEach(x=>{
+  [7.5,12.5,16.5].forEach(z=>desk(x,z));
+  [27.5,32.5,36.5].forEach(z=>desk(x,z));
+});
+[8,11.5,15].forEach(x=>{
+  [7.5,12.5,16.5].forEach(z=>desk(x,z));
+  [27.5,32.5,36.5].forEach(z=>desk(x,z));
+});
+
+/* ---- 사물함 (교실 뒷벽) ---- */
+function lockers(cx,zB,ry){
+  for(let i=0;i<7;i++){
+    const lx=cx+(-3.15+i*1.05);
+    add(B(.98,1.88,.4),M.lkBdy,lx,.94,zB,ry,'furn');
+    add(B(.08,.08,.12),M.lkHd,lx+(ry?0:.42),.82,zB+(ry?.42:0),ry,'furn');
+    add(B(.08,.08,.12),M.lkHd,lx+(ry?0:.42),1.54,zB+(ry?.42:0),ry,'furn');
+  }
+}
+lockers(-11,17.75,0); lockers(-11,37.75,0);
+lockers(11,17.75,Math.PI); lockers(11,37.75,Math.PI);
+
+/* ---- 복도 디테일 ---- */
+[10,20,30].forEach(z=>{
+  add(B(2.6,1.1,.07),M.notBd,-5.08,2.55,z,Math.PI/2);
+  add(B(2.4,.92,.04),M.notPp,-5.08,2.55,z,Math.PI/2);
+  add(B(2.6,1.1,.07),M.notBd, 5.08,2.55,z,Math.PI/2);
+  add(B(2.4,.92,.04),M.notPp, 5.08,2.55,z,Math.PI/2);
+});
+[5,15,25,35].forEach(z=>{roomPlate(-5,z);roomPlate(5,z);});
+[1,21].forEach(z=>{
+  add(Cy(.1,.66),M.ext,-4.85,.52,z); add(Cy(.08,.14),M.extH,-4.85,.98,z);
+  add(Cy(.1,.66),M.ext, 4.85,.52,z); add(Cy(.08,.14),M.extH, 4.85,.98,z);
+});
+
+/* ---- 서버룸 ---- */
+function rack(x,z){
+  add(B(.84,2.2,.62),M.srv,x,1.1,z);
+  for(let i=0;i<7;i++){
+    add(B(.12,.04,.06),M.srvR,x+.3,.3+i*.3,z-.33);
+    add(B(.12,.04,.06),M.srvG,x+.18,.3+i*.3,z-.33);
+    if(i%2===0) add(B(.1,.04,.06),M.srvB,x+.06,.3+i*.3,z-.33);
+  }
+}
+rack(-3.6,-6.2); rack(3.6,-6.2); rack(-4.2,-4); rack(4.2,-4);
+add(B(.38,.24,.04),M.mon,-3.4,.95,-2.4); add(B(.34,.2,.03),M.monS,-3.4,.95,-2.38);
+
+/* ---- 계단 ---- */
+for(let i=0;i<9;i++){
+  add(B(7,.18,.84),M.step,0,.18*(i+1),44.4+i*.84);
+  add(B(.06,1.2+.18*(i+1),.06),M.rail,-3.5,(1.2+.18*(i+1))/2,44.4+i*.84);
+  add(B(.06,1.2+.18*(i+1),.06),M.rail, 3.5,(1.2+.18*(i+1))/2,44.4+i*.84);
+}
+add(B(.05,.05,8),M.rail,-3.5,1.65,48.5); add(B(.05,.05,8),M.rail,3.5,1.65,48.5);
+add(B(7,.12,2),M.fEx,0,.12,52.0);
+add(B(1.8,2.8,.06),M.mEx,0,1.4,51.97,0,'marker');
+add(B(.32,.24,.1),M.emer,0,H-.2,51.9); add(B(.32,.24,.1),M.emer,-4.95,H-.38,44,Math.PI/2);
+
+/* ---- 게임 마커 ---- */
+add(Cy(.28,.1,16),M.mPl,0,.06,-4.5,0,'marker');
+add(B(.1,.1,.5),M.mPl,0,.14,-4.9,0,'marker');
+function clue(x,z){add(Sp(.26,14),M.mCl,x,.9,z,0,'marker');pl(x,1.1,z,0xf0c040,.7,5);}
+clue(-11,10); clue(11,10); clue(-11,28);
+const ghMesh=[];
+function ghost(x,z,ph){
+  const m=add(Sp(.32,12),M.mGh,x,.82,z,0,'marker');
+  m.userData={ph}; ghMesh.push(m); pl(x,.9,z,0xc82020,.5,4);
+}
+ghost(0,4,0); ghost(0,13,.4);
+add(B(.04,.04,9),new THREE.MeshBasicMaterial({color:0xc82020,transparent:true,opacity:.15}),0,.82,8.5,0,'marker');
+ghost(-10.5,9,.9); ghost(-6.5,12.5,1.3);
+ghost(0,22.5,1.7); ghost(0,33.5,2.1);
+
+/* ---- 카메라 ---- */
+const VIEWS={
+  iso: {p:[62,46,-14],t:[0,2,22]},
+  top: {p:[0,90,22],  t:[0,0,22]},
+  hall:{p:[0,1.7,4],  t:[0,1.7,16]},
+  cls: {p:[-5.4,1.65,5.5],t:[-11,1.65,10]},
+};
+const orb={r:80,phi:.58,theta:-.44};
+const ot=new THREE.Vector3(0,2,22);
+function applyOrb(){
+  cam.position.set(
+    ot.x+orb.r*Math.sin(orb.phi)*Math.sin(orb.theta),
+    ot.y+orb.r*Math.cos(orb.phi),
+    ot.z+orb.r*Math.sin(orb.phi)*Math.cos(orb.theta));
+  cam.lookAt(ot);
+}
+applyOrb();
+function setV(n){
+  ['iso','top','hall','cls'].forEach(v=>document.getElementById('v-'+v).classList.toggle('on',v===n));
+  const v=VIEWS[n];cam.position.set(...v.p);ot.set(...v.t);cam.lookAt(ot);
+  const dx=cam.position.x-ot.x,dy=cam.position.y-ot.y,dz=cam.position.z-ot.z;
+  orb.r=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  orb.phi=Math.acos(Math.max(-1,Math.min(1,dy/orb.r)));
+  orb.theta=Math.atan2(dx,dz);
+}
+function tog(k){
+  LON[k]=!LON[k];
+  document.getElementById('t-'+k).classList.toggle('on',LON[k]);
+  LYR[k].forEach(m=>m.visible=LON[k]);
+}
+setTimeout(()=>tog('roof'),0);
+let drag=false,rcl=false,lx=0,ly=0;
+cv.addEventListener('mousedown',e=>{if(e.button===0)drag=true;if(e.button===2)rcl=true;lx=e.clientX;ly=e.clientY;});
+window.addEventListener('mouseup',()=>{drag=false;rcl=false;});
+window.addEventListener('mousemove',e=>{
+  if(drag){orb.theta-=(e.clientX-lx)*.006;orb.phi-=(e.clientY-ly)*.006;orb.phi=Math.max(.04,Math.min(1.56,orb.phi));applyOrb();}
+  if(rcl){const s=orb.r*.0018;ot.x-=(e.clientX-lx)*s;ot.z-=(e.clientY-ly)*s;applyOrb();}
+  lx=e.clientX;ly=e.clientY;
+});
+cv.addEventListener('wheel',e=>{orb.r=Math.max(4,Math.min(120,orb.r+e.deltaY*.04));applyOrb();e.preventDefault();},{passive:false});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+let t=0;
+function animate(){
+  requestAnimationFrame(animate); t+=.016;
+  ghMesh.forEach(g=>{g.position.y=.76+Math.sin(t*1.8+g.userData.ph)*.22;g.rotation.y=t*.45+g.userData.ph;});
+  M.srvR.emissiveIntensity=.8+Math.sin(t*4.8)*.7;
+  svL.intensity=1.8+Math.sin(t*1.4)*.55;
+  exL.intensity=1.6+Math.sin(t*2.0)*.45;
+  flkL.intensity=.72+Math.sin(t*22+Math.random()*.4)*.32;
+  /* 창문 하늘빛 맥동 (밤/새벽 분위기) */
+  M.glWin.emissiveIntensity=.55+Math.sin(t*.4)*.12;
+  renderer.render(scene,cam);
+}
+animate();
+window.addEventListener('resize',()=>{
+  const W2=window.innerWidth-200,H2=window.innerHeight;
+  cam.aspect=W2/H2;cam.updateProjectionMatrix();renderer.setSize(W2,H2);
+});
+</script>
+</body>
+</html>

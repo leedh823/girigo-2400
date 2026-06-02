@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>기리고 : 24:00 — 학교 설계도 v2</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #080810; color: #e8e0d5; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+canvas { display: block; }
+
+#panel {
+  position: fixed; top: 20px; right: 20px;
+  background: rgba(8,8,16,0.94);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 16px; width: 235px; z-index: 100; font-size: 12px;
+}
+#panel h2 { font-size: 12px; color: #c8382a; letter-spacing: 0.12em; margin-bottom: 12px; text-transform: uppercase; }
+.ctrl-group { margin-bottom: 11px; }
+.ctrl-group label { display: block; color: #5a5450; margin-bottom: 5px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+.ctrl-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.ctrl-btn {
+  background: rgba(255,255,255,0.03); border: 0.5px solid rgba(255,255,255,0.09);
+  color: #7a7470; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 11px; transition: all 0.2s;
+}
+.ctrl-btn:hover { background: rgba(200,56,42,0.12); border-color: rgba(200,56,42,0.35); color: #ff8070; }
+.ctrl-btn.active { background: rgba(200,56,42,0.18); border-color: rgba(200,56,42,0.55); color: #ff6b5a; }
+.legend { margin-top: 12px; border-top: 0.5px solid rgba(255,255,255,0.06); padding-top: 11px; }
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 10px; color: #5a5450; }
+.legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+#info-bar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: rgba(8,8,16,0.85); border: 0.5px solid rgba(255,255,255,0.06);
+  border-radius: 20px; padding: 7px 20px; font-size: 10px; color: #4a4440; letter-spacing: 0.06em; z-index: 100;
+}
+#title-label {
+  position: fixed; top: 20px; left: 20px;
+  font-size: 11px; color: rgba(200,56,42,0.6); letter-spacing: 0.15em; text-transform: uppercase; z-index: 100;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="title-label">기리고 : 24:00 — 학교 설계도 v2</div>
+
+<div id="panel">
+  <h2>⚙ 설계도 컨트롤</h2>
+
+  <div class="ctrl-group">
+    <label>시점</label>
+    <div class="ctrl-row">
+      <button class="ctrl-btn active" id="v-iso"  onclick="setView('iso')">아이소메트릭</button>
+      <button class="ctrl-btn"        id="v-top"  onclick="setView('top')">평면도</button>
+      <button class="ctrl-btn"        id="v-side" onclick="setView('side')">측면도</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>구조 표시</label>
+    <div class="ctrl-row">
+      <button class="ctrl-btn" id="tog-roof"  onclick="toggle('roof')">지붕 보이기</button>
+      <button class="ctrl-btn" id="tog-walls" onclick="toggle('walls')">외벽 보이기</button>
+    </div>
+  </div>
+
+  <div class="ctrl-group">
+    <label>오브젝트</label>
+    <div class="ctrl-row">
+      <button class="ctrl-btn active" id="tog-desk"   onclick="toggle('desk')">책상/의자</button>
+      <button class="ctrl-btn active" id="tog-board"  onclick="toggle('board')">칠판</button>
+      <button class="ctrl-btn active" id="tog-locker" onclick="toggle('locker')">사물함</button>
+      <button class="ctrl-btn active" id="tog-window" onclick="toggle('window')">창문</button>
+      <button class="ctrl-btn active" id="tog-marker" onclick="toggle('marker')">게임 마커</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div style="font-size:10px;color:#333;margin-bottom:7px;letter-spacing:0.06em;">공간 범례</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#2a1a3a;"></div>시작 공간 (기리고 앱 서버실)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e2a40;"></div>교실 A·B (좌측)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1a3028;"></div>교실 C·D (우측)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#201e10;"></div>중앙 복도</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1a2a1a;"></div>탈출 공간 (옥상 계단실)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffffff;"></div>플레이어 시작</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c8382a;"></div>귀신 위치</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f0c040;"></div>단서 아이템</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4a9eff;"></div>출구</div>
+  </div>
+</div>
+
+<div id="info-bar">좌클릭 드래그: 회전 &nbsp;|&nbsp; 우클릭 드래그: 이동 &nbsp;|&nbsp; 스크롤: 줌</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ════ 렌더러 ════
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x060608);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x060608, 0.012);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 400);
+
+// ════ 조명 ════
+scene.add(new THREE.AmbientLight(0x334455, 1.1));
+
+function ptL(x,y,z,col,intensity,dist=18){
+  const l = new THREE.PointLight(col,intensity,dist);
+  l.position.set(x,y,z); l.castShadow=true; scene.add(l); return l;
+}
+
+// 시작 공간 — 붉은 서버룸 느낌
+ptL(0, 3.5, -5,  0x882222, 1.2, 14);
+ptL(0, 3.5, -5,  0xff4444, 0.3, 8);
+
+// 복도
+ptL(0, 3.4, 8,   0x556644, 0.7);
+ptL(0, 3.4, 18,  0x556644, 0.7);
+ptL(0, 3.4, 28,  0x556644, 0.6);
+const redBlink = ptL(0, 3.4, 18, 0xc8382a, 0.5, 15); // 비상등
+
+// 교실 좌측
+ptL(-10,3.5,10, 0x99aabb,1.0);
+ptL(-10,3.5,24, 0x99aabb,1.0);
+// 교실 우측
+ptL(10, 3.5,10, 0xaab9a0,1.0);
+ptL(10, 3.5,24, 0xaab9a0,1.0);
+
+// 탈출 공간
+ptL(0, 3.5, 40, 0x44aa66, 0.9, 16);
+ptL(0, 3.5, 40, 0x88ffaa, 0.4, 8);
+
+// ════ 재질 ════
+const M = {
+  // 바닥
+  floorStart:  new THREE.MeshLambertMaterial({color:0x0f0c18}),
+  floorCorridor: new THREE.MeshLambertMaterial({color:0x141210}),
+  floorClassL: new THREE.MeshLambertMaterial({color:0x111828}),
+  floorClassR: new THREE.MeshLambertMaterial({color:0x101810}),
+  floorExit:   new THREE.MeshLambertMaterial({color:0x0c140c}),
+  // 벽
+  wallStart:   new THREE.MeshLambertMaterial({color:0x1e0e28, side:THREE.DoubleSide}),
+  wallCorridor:new THREE.MeshLambertMaterial({color:0x161410, side:THREE.DoubleSide}),
+  wallClassL:  new THREE.MeshLambertMaterial({color:0x141e2e, side:THREE.DoubleSide}),
+  wallClassR:  new THREE.MeshLambertMaterial({color:0x101e16, side:THREE.DoubleSide}),
+  wallExit:    new THREE.MeshLambertMaterial({color:0x0e180e, side:THREE.DoubleSide}),
+  // 천장
+  ceiling:     new THREE.MeshLambertMaterial({color:0x080810, side:THREE.DoubleSide, transparent:true, opacity:0.5}),
+  // 가구
+  deskTop:     new THREE.MeshLambertMaterial({color:0x8b5520}),
+  deskLeg:     new THREE.MeshLambertMaterial({color:0x5a3010}),
+  chair:       new THREE.MeshLambertMaterial({color:0x1a3a8a}),
+  board:       new THREE.MeshLambertMaterial({color:0x0d2b0d}),
+  boardFr:     new THREE.MeshLambertMaterial({color:0x3a2510}),
+  locker:      new THREE.MeshLambertMaterial({color:0x2a2a2a}),
+  lockerL:     new THREE.MeshLambertMaterial({color:0x181818}),
+  window:      new THREE.MeshLambertMaterial({color:0x4a9eff, transparent:true, opacity:0.2, side:THREE.DoubleSide}),
+  windowFr:    new THREE.MeshLambertMaterial({color:0x606870}),
+  door:        new THREE.MeshLambertMaterial({color:0x3e2408}),
+  doorFr:      new THREE.MeshLambertMaterial({color:0x222218}),
+  // 서버랙 (시작공간)
+  server:      new THREE.MeshLambertMaterial({color:0x1a1a22}),
+  serverLight: new THREE.MeshLambertMaterial({color:0xc8382a, emissive:0x440000}),
+  serverLightG:new THREE.MeshLambertMaterial({color:0x44ff44, emissive:0x004400}),
+  // 게임 마커
+  ghost:       new THREE.MeshLambertMaterial({color:0xc8382a, transparent:true, opacity:0.8, emissive:0x440000}),
+  item:        new THREE.MeshLambertMaterial({color:0xf0c040, emissive:0x553300}),
+  exit:        new THREE.MeshLambertMaterial({color:0x4a9eff, emissive:0x001844, transparent:true, opacity:0.8}),
+  player:      new THREE.MeshLambertMaterial({color:0xffffff, emissive:0x444444}),
+  // 계단
+  stair:       new THREE.MeshLambertMaterial({color:0x222820}),
+};
+
+// ════ 그룹 ════
+const G = {roof:[], walls:[], desk:[], board:[], locker:[], window:[], marker:[]};
+const togState = {roof:false, walls:false, desk:true, board:true, locker:true, window:true, marker:true};
+
+function mk(geo, mat, x,y,z, rx=0,ry=0,rz=0, grp=null){
+  const m = new THREE.Mesh(geo,mat);
+  m.position.set(x,y,z); m.rotation.set(rx,ry,rz);
+  m.castShadow=true; m.receiveShadow=true;
+  scene.add(m);
+  if(grp) G[grp].push(m);
+  return m;
+}
+const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+
+// ════════════════════════════════════════════
+//  레이아웃
+//
+//  [시작공간]  z: -10 ~ 0    x: -4 ~ 4   (폭 8)
+//  [복도]      z:  0  ~ 36   x: -4 ~ 4   (폭 8)
+//  [교실A]     z:  4  ~ 18   x: -14 ~ -4 (좌측상)
+//  [교실B]     z: 18  ~ 32   x: -14 ~ -4 (좌측하)
+//  [교실C]     z:  4  ~ 18   x:  4  ~ 14 (우측상)
+//  [교실D]     z: 18  ~ 32   x:  4  ~ 14 (우측하)
+//  [탈출공간]  z: 36  ~ 46   x: -4 ~ 4   (폭 8)
+//
+//  높이 H = 4m
+// ════════════════════════════════════════════
+const H = 4;
+
+// ─── 바닥 ───
+mk(B(8,0.12,10),  M.floorStart,    0,0,-5);
+mk(B(8,0.12,36),  M.floorCorridor, 0,0,18);
+mk(B(10,0.12,14), M.floorClassL,  -9,0,11);
+mk(B(10,0.12,14), M.floorClassL,  -9,0,25);
+mk(B(10,0.12,14), M.floorClassR,   9,0,11);
+mk(B(10,0.12,14), M.floorClassR,   9,0,25);
+mk(B(8,0.12,10),  M.floorExit,     0,0,41);
+
+// ─── 천장 ───
+function addCeiling(w,d,x,z,grp='roof'){
+  const r=mk(B(w,0.12,d), M.ceiling, x,H,z);
+  G.roof.push(r);
+}
+addCeiling(8,10,  0,-5);
+addCeiling(8,36,  0,18);
+addCeiling(10,14,-9,11);
+addCeiling(10,14,-9,25);
+addCeiling(10,14, 9,11);
+addCeiling(10,14, 9,25);
+addCeiling(8,10,  0,41);
+
+// ─── 벽 생성 헬퍼 ───
+function wall(w,h,d,mat,x,y,z,ry=0,grp=null){
+  const m=mk(B(w,h,d),mat,x,y,z,0,ry);
+  if(grp) G[grp].push(m);
+  return m;
+}
+
+// ═══ 시작 공간 벽 (서버룸) ═══
+wall(8, H,0.12, M.wallStart,  0,H/2,-10);        // 뒤
+wall(0.12,H,10, M.wallStart, -4,H/2,-5);          // 왼
+wall(0.12,H,10, M.wallStart,  4,H/2,-5);          // 오른
+// 앞(z=0)은 복도와 연결, 문 양옆
+wall(2.8,H,0.12, M.wallStart, -2.6,H/2,0);
+wall(2.8,H,0.12, M.wallStart,  2.6,H/2,0);
+wall(1.6,H-2.4,0.12, M.wallStart, 0,H-0.8,0);
+
+// ═══ 복도 벽 ═══
+// 좌측벽 (교실 연결 부분 제외)
+wall(0.12,H,4,  M.wallCorridor,-4,H/2, 2);   // 복도 시작~교실A 전
+wall(0.12,H,4,  M.wallCorridor,-4,H/2,34);   // 교실B 후~탈출 전
+// 복도-교실A 경계 문 양옆 (z=4~18)
+wall(0.12,H,5.8,M.wallCorridor,-4,H/2, 7.1);
+wall(0.12,H,5.8,M.wallCorridor,-4,H/2,14.9);
+wall(0.12,H-2.4,0.12,M.wallCorridor,-4,H-0.8,11);
+// 복도-교실B 경계 문 양옆 (z=18~32)
+wall(0.12,H,5.8,M.wallCorridor,-4,H/2,21.1);
+wall(0.12,H,5.8,M.wallCorridor,-4,H/2,28.9);
+wall(0.12,H-2.4,0.12,M.wallCorridor,-4,H-0.8,25);
+// 우측벽 동일
+wall(0.12,H,4,  M.wallCorridor, 4,H/2, 2);
+wall(0.12,H,4,  M.wallCorridor, 4,H/2,34);
+wall(0.12,H,5.8,M.wallCorridor, 4,H/2, 7.1);
+wall(0.12,H,5.8,M.wallCorridor, 4,H/2,14.9);
+wall(0.12,H-2.4,0.12,M.wallCorridor, 4,H-0.8,11);
+wall(0.12,H,5.8,M.wallCorridor, 4,H/2,21.1);
+wall(0.12,H,5.8,M.wallCorridor, 4,H/2,28.9);
+wall(0.12,H-2.4,0.12,M.wallCorridor, 4,H-0.8,25);
+// 복도 끝 (탈출공간 앞) 문
+wall(2.8,H,0.12,M.wallCorridor,-2.6,H/2,36);
+wall(2.8,H,0.12,M.wallCorridor, 2.6,H/2,36);
+wall(1.6,H-2.4,0.12,M.wallCorridor, 0,H-0.8,36);
+
+// ═══ 교실 A (좌측상) z:4~18, x:-14~-4 ═══
+wall(10,H,0.12,M.wallClassL,  -9,H/2, 4);   // 복도쪽 벽 (문 제외)
+wall(10,H,0.12,M.wallClassL,  -9,H/2,18);   // 뒤
+wall(0.12,H,14,M.wallClassL, -14,H/2,11);   // 외벽 좌
+// 창문 아래/위
+wall(0.12,0.7,14, M.wallClassL,-14,0.35,11,'wall','walls');
+wall(0.12,H*0.35,14,M.wallClassL,-14,H*0.82,11,'wall','walls');
+
+// ═══ 교실 B (좌측하) z:18~32, x:-14~-4 ═══
+wall(10,H,0.12,M.wallClassL,  -9,H/2,18,'wall');  // 위(교실A와 공유벽 — 이미 있음)
+wall(10,H,0.12,M.wallClassL,  -9,H/2,32);
+wall(0.12,H,14,M.wallClassL, -14,H/2,25);
+wall(0.12,0.7,14, M.wallClassL,-14,0.35,25,'wall','walls');
+wall(0.12,H*0.35,14,M.wallClassL,-14,H*0.82,25,'wall','walls');
+
+// ═══ 교실 C (우측상) z:4~18, x:4~14 ═══
+wall(10,H,0.12,M.wallClassR,   9,H/2, 4);
+wall(10,H,0.12,M.wallClassR,   9,H/2,18);
+wall(0.12,H,14,M.wallClassR,  14,H/2,11);
+wall(0.12,0.7,14, M.wallClassR,14,0.35,11,'wall','walls');
+wall(0.12,H*0.35,14,M.wallClassR,14,H*0.82,11,'wall','walls');
+
+// ═══ 교실 D (우측하) z:18~32, x:4~14 ═══
+wall(10,H,0.12,M.wallClassR,   9,H/2,32);
+wall(0.12,H,14,M.wallClassR,  14,H/2,25);
+wall(0.12,0.7,14, M.wallClassR,14,0.35,25,'wall','walls');
+wall(0.12,H*0.35,14,M.wallClassR,14,H*0.82,25,'wall','walls');
+
+// ═══ 탈출 공간 (옥상 계단실) ═══
+wall(8, H,0.12,M.wallExit,  0,H/2,46);   // 끝
+wall(0.12,H,10,M.wallExit, -4,H/2,41);   // 왼
+wall(0.12,H,10,M.wallExit,  4,H/2,41);   // 오른
+wall(2.8,H,0.12,M.wallExit,-2.6,H/2,36); // 이미 복도벽과 공유
+wall(2.8,H,0.12,M.wallExit, 2.6,H/2,36);
+
+// ─── 외벽 그룹 등록 (토글용) ───
+// 이미 각 교실 외벽을 walls 그룹에 추가했으므로 추가로 관찰자 방향 벽도 등록
+// (기본: 숨김)
+
+// ─── 문 ───
+function makeDoor(x,z,ry=0){
+  mk(B(1.4,2.4,0.08),M.door,  x,1.2,z,0,ry);
+  mk(B(1.6,2.6,0.05),M.doorFr,x,1.3,z,0,ry);
+  mk(B(0.07,0.07,0.1),M.lockerL,x+(ry===0?0.55:0),1.2,z+(ry===0?0:0.55),0,ry);
+}
+makeDoor(0,-10+0.06);         // 시작공간 뒤 (비상문 느낌)
+makeDoor(0, 0.06);            // 시작→복도
+makeDoor(-4,11,Math.PI/2);   // 복도→교실A
+makeDoor(-4,25,Math.PI/2);   // 복도→교실B
+makeDoor( 4,11,Math.PI/2);   // 복도→교실C
+makeDoor( 4,25,Math.PI/2);   // 복도→교실D
+makeDoor(0, 35.94);           // 복도→탈출공간
+
+// ─── 창문 ───
+function makeWindow(x,z,ry=0){
+  const w=mk(B(1.8,1.5,0.07),M.window,x,2.1,z,0,ry,0,'window');
+  mk(B(2.0,1.7,0.05),M.windowFr,x,2.1,z,0,ry);
+  mk(B(1.8,0.06,0.06),M.windowFr,x,2.1,z,0,ry);
+  mk(B(0.06,1.5,0.06),M.windowFr,x,2.1,z,0,ry);
+  G.window.push(w);
+}
+// 교실A 외벽 창문
+makeWindow(-13.97,7, Math.PI/2);
+makeWindow(-13.97,14,Math.PI/2);
+// 교실B 외벽 창문
+makeWindow(-13.97,21,Math.PI/2);
+makeWindow(-13.97,28,Math.PI/2);
+// 교실C 외벽 창문
+makeWindow(13.97,7,  Math.PI/2);
+makeWindow(13.97,14, Math.PI/2);
+// 교실D 외벽 창문
+makeWindow(13.97,21, Math.PI/2);
+makeWindow(13.97,28, Math.PI/2);
+// 복도 외벽 창문 (없음 — 복도는 내부)
+// 탈출공간 창문 (옥상)
+makeWindow(0,45.94);
+makeWindow(-3,45.94);
+makeWindow(3,45.94);
+
+// ─── 칠판 ───
+function makeBoard(cx,cz,ry=0){
+  const bm=mk(B(4.5,1.6,0.06),M.board, cx,2.4,cz,0,ry,0,'board');
+  mk(B(4.7,1.8,0.04),M.boardFr,cx,2.4,cz,0,ry);
+  mk(B(4.5,0.08,0.12),M.boardFr,cx,1.55,cz+(ry===0?0.06:0),0,ry);
+  G.board.push(bm);
+}
+// 교실A (앞벽 z=4 기준, 칠판은 안쪽)
+makeBoard(-9,4.1);
+// 교실B
+makeBoard(-9,18.1);
+// 교실C
+makeBoard(9,4.1,Math.PI);
+// 교실D
+makeBoard(9,18.1,Math.PI);
+
+// ─── 책상+의자 ───
+function makeDesk(x,z){
+  const top=mk(B(1.15,0.06,0.65),M.deskTop,x,0.76,z,0,0,0,'desk');
+  [[-0.5,0.28],[0.5,0.28],[-0.5,-0.28],[0.5,-0.28]].forEach(([dx,dz])=>{
+    mk(B(0.05,0.76,0.05),M.deskLeg,x+dx,0.38,z+dz,0,0,0,'desk');
+  });
+  mk(B(0.9,0.2,0.05),M.deskTop,x,0.56,z-0.3,0,0,0,'desk');
+  mk(B(0.52,0.05,0.52),M.chair,x,0.46,z+0.72,0,0,0,'desk');
+  [[-0.2,0.25],[0.2,0.25],[-0.2,-0.25],[0.2,-0.25]].forEach(([dx,dz])=>{
+    mk(B(0.04,0.46,0.04),M.deskLeg,x+dx,0.23,z+0.72+dz,0,0,0,'desk');
+  });
+  mk(B(0.52,0.46,0.05),M.chair,x,0.7,z+0.98,0,0,0,'desk');
+  G.desk.push(top);
+}
+
+// 교실A (z:4~18, x:-14~-4)  → 내부 x:-13~-5, z:5~17
+[-12.5,-10.5,-8.0,-6.0].forEach(x=>[6.5,9.5,12.5].forEach(z=>makeDesk(x,z)));
+// 교사 책상 교실A
+mk(B(1.8,0.07,0.9),M.deskTop,-12,0.77,5.2);
+// 교실B (z:18~32)
+[-12.5,-10.5,-8.0,-6.0].forEach(x=>[20.5,23.5,26.5].forEach(z=>makeDesk(x,z)));
+mk(B(1.8,0.07,0.9),M.deskTop,-12,0.77,19.2);
+// 교실C (z:4~18, x:4~14)
+[5.5,7.5,10.0,12.5].forEach(x=>[6.5,9.5,12.5].forEach(z=>makeDesk(x,z)));
+mk(B(1.8,0.07,0.9),M.deskTop,12,0.77,5.2);
+// 교실D (z:18~32)
+[5.5,7.5,10.0,12.5].forEach(x=>[20.5,23.5,26.5].forEach(z=>makeDesk(x,z)));
+mk(B(1.8,0.07,0.9),M.deskTop,12,0.77,19.2);
+
+// ─── 사물함 ───
+function makeLocker(x,z,ry=0){
+  const lk=mk(B(0.55,1.85,0.42),M.locker,x,0.925,z,0,ry,0,'locker');
+  mk(B(0.55,0.03,0.42),M.lockerL,x,1.0,z,0,ry);
+  mk(B(0.07,0.07,0.07),M.lockerL,x+(ry===0?0.28:0),0.78,z+(ry===0?0:0.28),0,ry);
+  mk(B(0.07,0.07,0.07),M.lockerL,x+(ry===0?0.28:0),1.5, z+(ry===0?0:0.28),0,ry);
+  G.locker.push(lk);
+}
+// 교실A 뒷벽
+for(let i=0;i<7;i++) makeLocker(-13.5+i*1.3,17.8,0);
+// 교실B 뒷벽
+for(let i=0;i<7;i++) makeLocker(-13.5+i*1.3,31.8,0);
+// 교실C 뒷벽
+for(let i=0;i<7;i++) makeLocker(5+i*1.3,17.8,0);
+// 교실D 뒷벽
+for(let i=0;i<7;i++) makeLocker(5+i*1.3,31.8,0);
+// 복도 사물함 없음 (복도 폭이 좁음)
+
+// ─── 서버랙 (시작공간) ───
+function makeServerRack(x,z){
+  mk(B(0.8,2.2,0.6),M.server,x,1.1,z);
+  // 깜박이는 라이트
+  for(let i=0;i<5;i++){
+    mk(B(0.08,0.04,0.04),M.serverLight,x+0.25,0.4+i*0.4,z-0.32);
+    mk(B(0.08,0.04,0.04),M.serverLightG,x+0.15,0.4+i*0.4,z-0.32);
+  }
+}
+makeServerRack(-2.5,-7);
+makeServerRack( 0.5,-7);
+makeServerRack(-2.5,-4);
+makeServerRack( 0.5,-4);
+
+// ─── 계단 (탈출공간) ───
+for(let i=0;i<6;i++){
+  mk(B(5,0.18,0.9),M.stair, 0,0.18*(i+1),38+i*0.9);
+}
+// 비상구 표시
+mk(B(1.5,2.2,0.05),M.exit, 0,1.1,45.94);
+G.marker.push(scene.children[scene.children.length-1]);
+
+// ─── 게임 마커 ───
+// 플레이어 시작 (시작공간 중앙)
+const playerM=mk(new THREE.CylinderGeometry(0.22,0.22,0.08,20),M.player,0,0.04,-5);
+G.marker.push(playerM);
+mk(B(0.1,0.08,0.4),M.player,0,0.1,-5.25); // 방향 화살표
+G.marker.push(scene.children[scene.children.length-1]);
+
+// 귀신들 (각 교실 구석)
+const ghostPositions=[[-13,18.1,17],[-13,18.1,31],[13,18.1,17],[13,18.1,31]];
+const ghosts=[];
+ghostPositions.forEach(([x,y,z])=>{
+  const g=mk(new THREE.SphereGeometry(0.26,14,14),M.ghost,x,y,z);
+  ghosts.push(g);
+  G.marker.push(g);
+});
+
+// 단서 아이템 (각 교실 1개씩 + 복도 1개)
+[
+  [-8, 0.82,  9.5,  '교실A'],
+  [-8, 0.82, 23.5,  '교실B'],
+  [ 8, 0.82,  9.5,  '교실C'],
+  [ 8, 0.82, 23.5,  '교실D'],
+  [ 0, 0.15, 18,    '복도'],
+].forEach(([x,y,z])=>{
+  const itm=mk(B(0.22,0.06,0.16),M.item,x,y,z);
+  G.marker.push(itm);
+});
+
+// 출구 (탈출공간)
+const exitM=mk(B(1.4,2.3,0.05),M.exit,0,1.15,45.9);
+G.marker.push(exitM);
+
+// ════ 카메라 프리셋 ════
+const VIEWS = {
+  iso:  {pos:[35,28,-15], target:[0,2,18]},
+  top:  {pos:[0,50,18],   target:[0,0,18]},
+  side: {pos:[-28,12,18], target:[0,2,18]},
+};
+
+let orbitTarget = new THREE.Vector3(0,2,18);
+let sph = {r:45, phi:0.78, theta:-0.55};
+
+function applyOrbit(){
+  camera.position.set(
+    orbitTarget.x + sph.r*Math.sin(sph.phi)*Math.sin(sph.theta),
+    orbitTarget.y + sph.r*Math.cos(sph.phi),
+    orbitTarget.z + sph.r*Math.sin(sph.phi)*Math.cos(sph.theta)
+  );
+  camera.lookAt(orbitTarget);
+}
+applyOrbit();
+
+function setView(name){
+  ['iso','top','side'].forEach(v=>document.getElementById('v-'+v).classList.remove('active'));
+  document.getElementById('v-'+name).classList.add('active');
+  const v=VIEWS[name];
+  camera.position.set(...v.pos);
+  orbitTarget.set(...v.target);
+  camera.lookAt(orbitTarget);
+  const dx=camera.position.x-orbitTarget.x,
+        dy=camera.position.y-orbitTarget.y,
+        dz=camera.position.z-orbitTarget.z;
+  sph.r=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  sph.phi=Math.acos(dy/sph.r);
+  sph.theta=Math.atan2(dx,dz);
+}
+
+// ════ 토글 ════
+function toggle(key){
+  togState[key]=!togState[key];
+  const btn=document.getElementById('tog-'+key);
+  btn.classList.toggle('active',togState[key]);
+  if(key==='roof')  btn.textContent=togState[key]?'지붕 숨기기':'지붕 보이기';
+  if(key==='walls') btn.textContent=togState[key]?'외벽 숨기기':'외벽 보이기';
+  G[key].forEach(m=>m.visible=togState[key]);
+}
+// 기본 상태: 지붕·외벽 숨김
+G.roof.forEach(m=>m.visible=false);
+G.walls.forEach(m=>m.visible=false);
+
+// ════ 마우스 오빗 ════
+let drag=false,rclick=false,lx=0,ly=0;
+canvas.addEventListener('mousedown',e=>{if(e.button===0)drag=true;if(e.button===2)rclick=true;lx=e.clientX;ly=e.clientY;});
+window.addEventListener('mouseup',()=>{drag=false;rclick=false;});
+window.addEventListener('mousemove',e=>{
+  if(drag){
+    sph.theta-=(e.clientX-lx)*0.007;
+    sph.phi  -=(e.clientY-ly)*0.007;
+    sph.phi=Math.max(0.06,Math.min(Math.PI/2-0.02,sph.phi));
+    applyOrbit();
+  }
+  if(rclick){
+    const s=sph.r*0.002;
+    orbitTarget.x-=(e.clientX-lx)*s;
+    orbitTarget.z-=(e.clientY-ly)*s;
+    applyOrbit();
+  }
+  lx=e.clientX;ly=e.clientY;
+});
+canvas.addEventListener('wheel',e=>{
+  sph.r=Math.max(8,Math.min(80,sph.r+e.deltaY*0.05));
+  applyOrbit();
+  e.preventDefault();
+},{passive:false});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+// ════ 애니메이션 ════
+let t=0;
+function animate(){
+  requestAnimationFrame(animate);
+  t+=0.02;
+  // 귀신 부유
+  ghosts.forEach((g,i)=>{
+    g.position.y=0.6+Math.sin(t+i*1.2)*0.2;
+    g.rotation.y=t*0.5+i;
+  });
+  // 단서 반짝임
+  M.item.emissive.setHex(Math.sin(t*2.5)>0?0x553300:0x886600);
+  // 비상등 깜박임
+  redBlink.intensity=0.3+Math.sin(t*2)*0.25;
+  // 서버 라이트
+  M.serverLight.emissive.setHex(Math.sin(t*3)>0.3?0x440000:0x220000);
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
