@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>기리고</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <div id="ui-overlay">
+
+            <!-- ── LOADING ── -->
+            <div id="screen-loading" class="screen active">
+                <div class="loading-wrapper">
+                    <div class="loading-logo">기리고</div>
+                    <div class="loading-bar-track">
+                        <div class="loading-bar" id="loading-bar"></div>
+                    </div>
+                    <div class="loading-label">LOADING</div>
+                </div>
+            </div>
+
+            <!-- ── TITLE ── -->
+            <div id="screen-title" class="screen">
+                <div class="title-wrap">
+                    <div class="title-badge">N SERIES</div>
+                    <div class="title-hero">
+                        <h1 class="title-main">기리고</h1>
+                        <p class="title-sub">그리고 우리는 선택했다</p>
+                    </div>
+                    <nav class="title-menu">
+                        <button class="menu-btn primary" id="btn-start">
+                            <span class="btn-icon">▶</span>게임 시작
+                        </button>
+                        <button class="menu-btn" id="btn-story">스토리</button>
+                        <button class="menu-btn" id="btn-settings">설정</button>
+                    </nav>
+                    <footer class="title-footer">Based on the Netflix Original Series</footer>
+                </div>
+            </div>
+
+            <!-- ── GAME ── -->
+            <div id="screen-game" class="screen">
+                <header id="game-hud">
+                    <div class="hud-block">
+                        <span class="hud-label">라운드</span>
+                        <span class="hud-value" id="round-num">1</span>
+                    </div>
+                    <div class="hud-block hud-timer-block">
+                        <span class="hud-timer" id="timer-val">30</span>
+                        <span class="hud-label">초</span>
+                    </div>
+                    <div class="hud-block hud-right">
+                        <span class="hud-label">생존자</span>
+                        <span class="hud-value" id="survivors-val">10</span>
+                    </div>
+                </header>
+                <div id="game-arena">
+                    <div class="arena-placeholder">
+                        <p class="arena-text">판결이 곧 시작됩니다</p>
+                        <p class="arena-sub">준비하십시오</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
