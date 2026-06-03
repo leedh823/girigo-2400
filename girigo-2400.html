@@ -1574,8 +1574,8 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 window.THREE = THREE;
-THREE.FBXLoader = FBXLoader;
-THREE.SkeletonUtils = SkeletonUtils;
+window.GhostFBXLoader = FBXLoader;
+window.GhostSkeletonUtils = SkeletonUtils;
 </script>
 <script defer src="js/girigo-school-v3.js"></script>
 <script defer>
@@ -2632,12 +2632,12 @@ function getGhostModelUrl() {
 function loadGhostModel() {
   if (ghostModelPromise) return ghostModelPromise;
   ghostModelPromise = new Promise((resolve, reject) => {
-    if (typeof THREE === 'undefined' || typeof THREE.FBXLoader === 'undefined') {
+    if (typeof THREE === 'undefined' || typeof window.GhostFBXLoader === 'undefined') {
       ghostModelPromise = null;
       reject(new Error('FBXLoader를 불러오지 못했습니다'));
       return;
     }
-    const loader = new THREE.FBXLoader();
+    const loader = new window.GhostFBXLoader();
     loader.load(
       getGhostModelUrl(),
       (fbx) => resolve(prepareGhostModel(fbx)),
@@ -2731,7 +2731,7 @@ function createGhostEntityFallback(scene, room, phase) {
 
 function createGhostEntity(scene, room, phase, template) {
   const x = room.cx, z = room.cz;
-  const group = THREE.SkeletonUtils.clone(template);
+  const group = window.GhostSkeletonUtils.clone(template);
 
   const materials = collectGhostMaterials(group);
   const light = new THREE.PointLight(0xff4422, 1.4, 11);
