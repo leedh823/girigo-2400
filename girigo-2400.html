@@ -1525,7 +1525,7 @@ html, body {
         </div>
         <div class="caught-title">발각되었습니다</div>
         <div class="caught-sub">귀신이 당신을 발견했습니다.<br>당신의 영혼은 기리고의 일부가 되었습니다.</div>
-        <button class="btn caught-restart-btn" onclick="restartGame()">다시 소원빌기</button>
+        <button class="btn caught-restart-btn" onclick="restartGame()">다시 소원 빌기</button>
       </div>
     </div>
 
@@ -1562,6 +1562,9 @@ html, body {
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/inflate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script src="js/girigo-school-v3.js"></script>
 <script>
 'use strict';
@@ -2076,7 +2079,7 @@ function showEnding(type) {
   const restartBtn = document.getElementById('btn-restart-ending');
   textEl.innerHTML = '';
   restartWrap.classList.remove('visible');
-  if (restartBtn) restartBtn.textContent = type === 'A' ? '다시 소원을 빌다' : '다시 시작하기';
+  if (restartBtn) restartBtn.textContent = type === 'A' ? '다시 소원 빌기' : '다시 시작하기';
 
   const wishEl = document.getElementById('ending-wish');
   if (type === 'C') { wishEl.textContent = `"${getWishLabel()}"`; wishEl.style.display = 'block'; }
@@ -2606,6 +2609,172 @@ function updateDoors(){
   }
 }
 
+let ghostModelTemplate = null;
+let ghostModelPromise = null;
+
+function loadGhostModel() {
+  if (ghostModelPromise) return ghostModelPromise;
+  ghostModelPromise = new Promise((resolve, reject) => {
+    if (typeof THREE.FBXLoader === 'undefined') {
+      reject(new Error('FBXLoader unavailable'));
+      return;
+    }
+    const loader = new THREE.FBXLoader();
+    loader.load(
+      'models/ghost-walk.fbx',
+      (fbx) => resolve(prepareGhostModel(fbx)),
+      undefined,
+      reject
+    );
+  });
+  return ghostModelPromise;
+}
+
+function prepareGhostModel(fbx) {
+  const box = new THREE.Box3().setFromObject(fbx);
+  const size = box.getSize(new THREE.Vector3());
+  const targetHeight = 1.55;
+  const scale = targetHeight / (size.y || 1);
+  fbx.scale.setScalar(scale);
+  box.setFromObject(fbx);
+  fbx.position.y = -box.min.y;
+
+  fbx.traverse((child) => {
+    if (!child.isMesh) return;
+    child.material = new THREE.MeshStandardMaterial({
+      color: 0xfff0ee,
+      transparent: true,
+      opacity: 0.9,
+      emissive: new THREE.Color(0xff4422),
+      emissiveIntensity: 0.85,
+      metalness: 0,
+      roughness: 0.82,
+      side: THREE.DoubleSide,
+    });
+    child.castShadow = true;
+    child.receiveShadow = false;
+  });
+
+  ghostModelTemplate = fbx;
+  return fbx;
+}
+
+function collectGhostMaterials(root) {
+  const mats = [];
+  root.traverse((child) => {
+    if (child.isMesh && child.material) mats.push(child.material);
+  });
+  return mats;
+}
+
+function createGhostEntityFallback(scene, room, phase) {
+  const x = room.cx, z = room.cz;
+  const tex = createGhostTexture();
+  const sheetMat = new THREE.MeshStandardMaterial({
+    map: tex, transparent: true, opacity: 1,
+    emissive: new THREE.Color(0xff5533), emissiveIntensity: 1.15,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xfff8f8, transparent: true, opacity: 0.55,
+    emissive: new THREE.Color(0xff4422), emissiveIntensity: 0.85,
+  });
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.36, 0.5, 12, 1, true), bodyMat);
+  body.position.y = 0.34;
+  group.add(body);
+  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(1.28, 1.55), sheetMat);
+  sheet.position.y = 0.92;
+  group.add(sheet);
+  const wisp = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.38), sheetMat.clone());
+  wisp.position.set(0, 0.4, 0.08);
+  wisp.rotation.x = 0.25;
+  group.add(wisp);
+  const light = new THREE.PointLight(0xff4422, 1.4, 11);
+  light.position.y = 0.95;
+  group.add(light);
+  group.position.set(x, 0, z);
+  scene.add(group);
+  return {
+    x, z, phase, room,
+    group, light,
+    materials: [sheetMat, bodyMat, wisp.material],
+    mixer: null, walkAction: null,
+    wisp,
+    chasing: false,
+    angle: Math.random() * Math.PI * 2,
+    speed: 0.01,
+    wanderT: 1.2 + Math.random() * 2.5,
+  };
+}
+
+function createGhostEntity(scene, room, phase, template) {
+  const x = room.cx, z = room.cz;
+  const group = THREE.SkeletonUtils
+    ? THREE.SkeletonUtils.clone(template)
+    : template.clone(true);
+
+  const materials = collectGhostMaterials(group);
+  const light = new THREE.PointLight(0xff4422, 1.4, 11);
+  light.position.y = 1.15;
+  group.add(light);
+
+  let mixer = null;
+  let walkAction = null;
+  if (template.animations && template.animations.length) {
+    mixer = new THREE.AnimationMixer(group);
+    const clip = template.animations.find((a) => /walk/i.test(a.name)) || template.animations[0];
+    walkAction = mixer.clipAction(clip);
+    walkAction.play();
+  }
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+  return {
+    x, z, phase, room,
+    group, light, materials, mixer, walkAction,
+    wisp: null,
+    chasing: false,
+    angle: Math.random() * Math.PI * 2,
+    speed: 0.01,
+    wanderT: 1.2 + Math.random() * 2.5,
+  };
+}
+
+function spawnGhosts(scene) {
+  ghosts = [];
+  loadGhostModel()
+    .then((template) => {
+      hideGhostLoadHint();
+      ghosts = GHOST_CLASSROOMS.map((room, i) => createGhostEntity(scene, room, i * 0.85, template));
+    })
+    .catch((err) => {
+      console.warn('귀신 FBX 로드 실패, 기본 모델 사용:', err);
+      ghosts = GHOST_CLASSROOMS.map((room, i) => createGhostEntityFallback(scene, room, i * 0.85));
+      showGhostLoadHint();
+    });
+}
+
+function showGhostLoadHint() {
+  let el = document.getElementById('ghost-load-hint');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'ghost-load-hint';
+    el.style.cssText = 'position:absolute;left:12px;right:12px;bottom:148px;z-index:16;padding:10px 12px;border-radius:8px;background:rgba(0,0,0,0.82);border:1px solid rgba(200,56,42,0.35);color:rgba(232,224,213,0.88);font-size:10px;line-height:1.55;text-align:center;pointer-events:none;';
+    document.getElementById('scene-3').appendChild(el);
+  }
+  const viaFile = location.protocol === 'file:';
+  el.textContent = viaFile
+    ? '3D 귀신 모델은 파일 더블클릭으로는 로드되지 않습니다. 터미널에서 python3 -m http.server 8080 실행 후 http://localhost:8080/girigo-2400.html 로 접속해 주세요.'
+    : '3D 귀신 모델 로드에 실패해 임시 모델을 표시합니다. models/ghost-walk.fbx 경로를 확인해 주세요.';
+  el.style.display = 'block';
+}
+
+function hideGhostLoadHint() {
+  const el = document.getElementById('ghost-load-hint');
+  if (el) el.style.display = 'none';
+}
+
 function createGhostTexture(){
   const s=128,cv=document.createElement('canvas');
   cv.width=s;cv.height=s;
@@ -2646,44 +2815,6 @@ function canGhostWalk(x,z,room){
   return isWalkable(x,z)&&isInClassroom(x,z,room);
 }
 
-function createGhostEntity(scene,room,phase){
-  const x=room.cx,z=room.cz;
-  const tex=createGhostTexture();
-  const sheetMat=new THREE.MeshStandardMaterial({
-    map:tex,transparent:true,opacity:1,
-    emissive:new THREE.Color(0xff5533),emissiveIntensity:1.15,
-    side:THREE.DoubleSide,depthWrite:false,
-  });
-  const bodyMat=new THREE.MeshStandardMaterial({
-    color:0xfff8f8,transparent:true,opacity:0.55,
-    emissive:new THREE.Color(0xff4422),emissiveIntensity:0.85,
-  });
-  const group=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.36,0.5,12,1,true),bodyMat);
-  body.position.y=0.34;
-  group.add(body);
-  const sheet=new THREE.Mesh(new THREE.PlaneGeometry(1.28,1.55),sheetMat);
-  sheet.position.y=0.92;
-  group.add(sheet);
-  const wisp=new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.38),sheetMat.clone());
-  wisp.position.set(0,0.4,0.08);
-  wisp.rotation.x=0.25;
-  group.add(wisp);
-  const light=new THREE.PointLight(0xff4422,1.4,11);
-  light.position.y=0.95;
-  group.add(light);
-  group.position.set(x,0,z);
-  scene.add(group);
-  return{
-    x,z,phase,room,
-    group,sheet,wisp,sheetMat,light,
-    chasing:false,
-    angle:Math.random()*Math.PI*2,
-    speed:0.01,
-    wanderT:1.2+Math.random()*2.5,
-  };
-}
-
 /* ─── 단서 배치 ─── */
 function placeClues(){
   cluePositions=[
@@ -2716,7 +2847,7 @@ function buildScene(scene){
     c.mesh=mesh;
   });
 
-  ghosts=GHOST_CLASSROOMS.map((room,i)=>createGhostEntity(scene,room,i*0.85));
+  spawnGhosts(scene);
 }
 
 /* ─── 이동 처리 ─── */
@@ -2777,19 +2908,30 @@ function updateGhostPatrol(){
       }
     }
 
-    const bob=0.72+Math.sin(threeClockT*2.2+g.phase)*0.2;
-    g.group.position.set(g.x,bob,g.z);
-    if(cam){
-      g.group.lookAt(cam.position.x,cam.position.y,g.group.position.z);
+    const bob = g.mixer ? 0 : 0.72 + Math.sin(threeClockT * 2.2 + g.phase) * 0.2;
+    g.group.position.set(g.x, bob, g.z);
+    g.group.rotation.y = g.angle;
+
+    const pulse = 0.9 + Math.sin(threeClockT * 3 + g.phase) * 0.1;
+    const emissive = g.chasing ? 1.55 * pulse : 1.0 * pulse;
+    if (g.materials) {
+      g.materials.forEach((mat) => {
+        if (mat.emissiveIntensity !== undefined) mat.emissiveIntensity = emissive;
+        if (mat.opacity !== undefined && !g.mixer) mat.opacity = 1;
+      });
     }
-    const pulse=0.9+Math.sin(threeClockT*3+g.phase)*0.1;
-    g.sheetMat.emissiveIntensity=g.chasing?1.65*pulse:1.1*pulse;
-    g.sheetMat.opacity=1;
-    if(g.light){
-      g.light.intensity=g.chasing?2.2+Math.sin(threeClockT*5)*0.4:1.4+Math.sin(threeClockT*2)*0.25;
+    if (g.light) {
+      g.light.intensity = g.chasing
+        ? 2.2 + Math.sin(threeClockT * 5) * 0.4
+        : 1.4 + Math.sin(threeClockT * 2) * 0.25;
     }
-    if(g.wisp.material) g.wisp.material.emissiveIntensity=g.sheetMat.emissiveIntensity;
-    g.wisp.rotation.z=Math.sin(threeClockT*1.6+g.phase)*0.15;
+    if (g.walkAction) {
+      g.walkAction.timeScale = g.chasing ? 1.35 : 0.75;
+    }
+    if (g.wisp) {
+      if (g.wisp.material) g.wisp.material.emissiveIntensity = emissive;
+      g.wisp.rotation.z = Math.sin(threeClockT * 1.6 + g.phase) * 0.15;
+    }
 
     if(g.chasing&&playerInside){
       const pdx=player.x-g.x,pdz=player.z-g.z;
@@ -2889,6 +3031,8 @@ function mazeLoop(){
   if(!threeApp){return;}
   mazeAnimFrame=requestAnimationFrame(mazeLoop);
   threeClockT+=.022;
+  const animDelta = 0.033;
+  ghosts.forEach((g) => { if (g.mixer) g.mixer.update(animDelta); });
   updateMovement(); updateDoors(); updateGhostPatrol();
   const cam=threeApp.camera;
   cam.position.set(player.x,EYE_H,player.z);
