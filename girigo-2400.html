@@ -2549,6 +2549,10 @@ const EYE_H    = 1.65;
 const MOVE_SPEED = 0.09;
 const ROT_SPEED  = 0.055;
 const PLAYER_R = 0.32;
+const GHOST_R = 0.28;
+const GHOST_CHASE_SPEED = 0.008;
+const GHOST_WANDER_SPEED_MIN = 0.0025;
+const GHOST_WANDER_SPEED_MAX = 0.0045;
 const DOOR_OPEN_DIST = 2.5;
 
 let player       = { x:0, z:-5, angle:0 }; /* angle=0 → +Z(복도) 방향 */
@@ -2850,8 +2854,37 @@ function isInClassroom(x,z,room){
   return x>room.minX+M&&x<room.maxX-M&&z>room.minZ+M&&z<room.maxZ-M;
 }
 
-function canGhostWalk(x,z,room){
-  return isWalkable(x,z)&&isInClassroom(x,z,room);
+function canGhostOccupy(x, z, room) {
+  if (!isWalkable(x, z) || !isInClassroom(x, z, room)) return false;
+  if (schoolEnv && schoolEnv.colliders) {
+    for (const b of schoolEnv.colliders) {
+      if (circleHitsBox(x, z, GHOST_R, b)) return false;
+    }
+  }
+  if (schoolEnv && schoolEnv.doors) {
+    for (const d of schoolEnv.doors) {
+      if (d.open < 0.42 && d.collider && circleHitsBox(x, z, GHOST_R, d.collider)) return false;
+    }
+  }
+  return true;
+}
+
+function moveGhostInRoom(g, tryX, tryZ, room) {
+  if (canGhostOccupy(tryX, tryZ, room)) {
+    g.x = tryX;
+    g.z = tryZ;
+    return true;
+  }
+  let moved = false;
+  if (canGhostOccupy(tryX, g.z, room)) {
+    g.x = tryX;
+    moved = true;
+  }
+  if (canGhostOccupy(g.x, tryZ, room)) {
+    g.z = tryZ;
+    moved = true;
+  }
+  return moved;
 }
 
 /* ─── 단서 배치 ─── */
@@ -2929,12 +2962,10 @@ function updateGhostPatrol(){
     if(playerInside){
       g.chasing=true;
       g.angle=Math.atan2(player.x-g.x,player.z-g.z);
-      g.speed=0.016;
+      g.speed=GHOST_CHASE_SPEED;
       const tryX=g.x+Math.sin(g.angle)*g.speed;
       const tryZ=g.z+Math.cos(g.angle)*g.speed;
-      if(canGhostWalk(tryX,tryZ,room)){
-        g.x=tryX; g.z=tryZ;
-      }else{
+      if(!moveGhostInRoom(g, tryX, tryZ, room)){
         g.angle+=Math.PI*0.45+(Math.random()-0.5)*0.5;
       }
     }else{
@@ -2942,14 +2973,12 @@ function updateGhostPatrol(){
       g.wanderT-=0.022;
       if(g.wanderT<=0){
         g.angle+=(Math.random()-0.5)*1.1;
-        g.speed=0.006+Math.random()*0.005;
+        g.speed=GHOST_WANDER_SPEED_MIN+Math.random()*(GHOST_WANDER_SPEED_MAX-GHOST_WANDER_SPEED_MIN);
         g.wanderT=2.2+Math.random()*3.8;
       }
       const tryX=g.x+Math.sin(g.angle)*g.speed;
       const tryZ=g.z+Math.cos(g.angle)*g.speed;
-      if(canGhostWalk(tryX,tryZ,room)){
-        g.x=tryX; g.z=tryZ;
-      }else{
+      if(!moveGhostInRoom(g, tryX, tryZ, room)){
         g.angle+=Math.PI*0.4+(Math.random()-0.5)*0.7;
       }
     }
@@ -2971,7 +3000,7 @@ function updateGhostPatrol(){
         : 1.4 + Math.sin(threeClockT * 2) * 0.25;
     }
     if (g.walkAction) {
-      g.walkAction.timeScale = g.chasing ? 1.25 : 0.85;
+      g.walkAction.timeScale = g.chasing ? 0.65 : 0.5;
     }
     if (g.wisp) {
       const em = g.chasing ? 1.4 : 1.0;
