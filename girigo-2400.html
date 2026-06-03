@@ -1571,10 +1571,10 @@ html, body {
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 window.THREE = THREE;
-window.GhostFBXLoader = FBXLoader;
+window.GhostGLTFLoader = GLTFLoader;
 window.GhostSkeletonUtils = SkeletonUtils;
 </script>
 <script defer src="js/girigo-school-v3.js"></script>
@@ -2626,25 +2626,29 @@ let ghostModelTemplate = null;
 let ghostModelPromise = null;
 
 function getGhostModelUrl() {
-  return new URL('models/ghost-walk.fbx', window.location.href).href;
+  return new URL('models/ghost.glb', window.location.href).href;
 }
 
 function loadGhostModel() {
   if (ghostModelPromise) return ghostModelPromise;
   ghostModelPromise = new Promise((resolve, reject) => {
-    if (typeof THREE === 'undefined' || typeof window.GhostFBXLoader === 'undefined') {
+    if (typeof THREE === 'undefined' || typeof window.GhostGLTFLoader === 'undefined') {
       ghostModelPromise = null;
-      reject(new Error('FBXLoader를 불러오지 못했습니다'));
+      reject(new Error('GLTFLoader를 불러오지 못했습니다'));
       return;
     }
-    const loader = new window.GhostFBXLoader();
+    const loader = new window.GhostGLTFLoader();
     loader.load(
       getGhostModelUrl(),
-      (fbx) => resolve(prepareGhostModel(fbx)),
+      (gltf) => {
+        const model = prepareGhostModel(gltf.scene);
+        model.animations = gltf.animations || [];
+        resolve(model);
+      },
       undefined,
       (err) => {
         ghostModelPromise = null;
-        reject(err || new Error('FBX 로드 실패'));
+        reject(err || new Error('GLB 로드 실패'));
       }
     );
   });
@@ -2663,8 +2667,8 @@ function tintGhostMaterial(mat) {
   return m;
 }
 
-function prepareGhostModel(fbx) {
-  fbx.traverse((child) => {
+function prepareGhostModel(root) {
+  root.traverse((child) => {
     if (child.isLight) {
       child.visible = false;
       return;
@@ -2680,16 +2684,16 @@ function prepareGhostModel(fbx) {
     child.frustumCulled = true;
   });
 
-  const box = new THREE.Box3().setFromObject(fbx);
+  const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
   const targetHeight = 1.55;
   const scale = targetHeight / (size.y || 1);
-  fbx.scale.setScalar(scale);
-  box.setFromObject(fbx);
-  fbx.position.y = -box.min.y;
+  root.scale.setScalar(scale);
+  box.setFromObject(root);
+  root.position.y = -box.min.y;
 
-  ghostModelTemplate = fbx;
-  return fbx;
+  ghostModelTemplate = root;
+  return root;
 }
 
 function isGhostRoomActive(g, playerX, playerZ) {
@@ -2783,7 +2787,7 @@ function spawnGhosts(scene) {
       ghosts = GHOST_CLASSROOMS.map((room, i) => createGhostEntity(scene, room, i * 0.85, template));
     })
     .catch((err) => {
-      console.warn('귀신 FBX 로드 실패, 기본 모델 사용:', err);
+      console.warn('귀신 GLB 로드 실패, 기본 모델 사용:', err);
       ghosts = GHOST_CLASSROOMS.map((room, i) => createGhostEntityFallback(scene, room, i * 0.85));
       showGhostLoadHint(err);
     });
@@ -2801,7 +2805,7 @@ function showGhostLoadHint(err) {
   const detail = err && err.message ? ` (${err.message})` : '';
   el.textContent = viaFile
     ? '3D 귀신 모델은 파일 더블클릭으로는 로드되지 않습니다. 터미널에서 python3 -m http.server 8080 실행 후 http://localhost:8080/girigo-2400.html 로 접속해 주세요.'
-    : `3D 귀신 모델 로드에 실패해 임시 모델을 표시합니다.${detail}`;
+    : `3D 귀신 모델(GLB) 로드에 실패해 임시 모델을 표시합니다.${detail}`;
   el.style.display = 'block';
 }
 
