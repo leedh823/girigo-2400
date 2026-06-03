@@ -1561,12 +1561,24 @@ html, body {
 </div>
 
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/inflate.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
-<script src="js/girigo-school-v3.js"></script>
-<script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+window.THREE = THREE;
+THREE.FBXLoader = FBXLoader;
+THREE.SkeletonUtils = SkeletonUtils;
+</script>
+<script defer src="js/girigo-school-v3.js"></script>
+<script defer>
 'use strict';
 
 /* ── 전역 게임 상태 ── */
@@ -1858,6 +1870,7 @@ function typeMosaicFinalLine(el, onDone) {
 function goToScene2() {
   showScene(2, 'fade');
   startTimer();
+  loadGhostModel().catch(() => {});
 
   const el = document.getElementById('warning-text');
   el.innerHTML = '';
@@ -2612,19 +2625,27 @@ function updateDoors(){
 let ghostModelTemplate = null;
 let ghostModelPromise = null;
 
+function getGhostModelUrl() {
+  return new URL('models/ghost-walk.fbx', window.location.href).href;
+}
+
 function loadGhostModel() {
   if (ghostModelPromise) return ghostModelPromise;
   ghostModelPromise = new Promise((resolve, reject) => {
-    if (typeof THREE.FBXLoader === 'undefined') {
-      reject(new Error('FBXLoader unavailable'));
+    if (typeof THREE === 'undefined' || typeof THREE.FBXLoader === 'undefined') {
+      ghostModelPromise = null;
+      reject(new Error('FBXLoader를 불러오지 못했습니다'));
       return;
     }
     const loader = new THREE.FBXLoader();
     loader.load(
-      'models/ghost-walk.fbx',
+      getGhostModelUrl(),
       (fbx) => resolve(prepareGhostModel(fbx)),
       undefined,
-      reject
+      (err) => {
+        ghostModelPromise = null;
+        reject(err || new Error('FBX 로드 실패'));
+      }
     );
   });
   return ghostModelPromise;
@@ -2710,9 +2731,7 @@ function createGhostEntityFallback(scene, room, phase) {
 
 function createGhostEntity(scene, room, phase, template) {
   const x = room.cx, z = room.cz;
-  const group = THREE.SkeletonUtils
-    ? THREE.SkeletonUtils.clone(template)
-    : template.clone(true);
+  const group = THREE.SkeletonUtils.clone(template);
 
   const materials = collectGhostMaterials(group);
   const light = new THREE.PointLight(0xff4422, 1.4, 11);
@@ -2751,11 +2770,11 @@ function spawnGhosts(scene) {
     .catch((err) => {
       console.warn('귀신 FBX 로드 실패, 기본 모델 사용:', err);
       ghosts = GHOST_CLASSROOMS.map((room, i) => createGhostEntityFallback(scene, room, i * 0.85));
-      showGhostLoadHint();
+      showGhostLoadHint(err);
     });
 }
 
-function showGhostLoadHint() {
+function showGhostLoadHint(err) {
   let el = document.getElementById('ghost-load-hint');
   if (!el) {
     el = document.createElement('div');
@@ -2764,9 +2783,10 @@ function showGhostLoadHint() {
     document.getElementById('scene-3').appendChild(el);
   }
   const viaFile = location.protocol === 'file:';
+  const detail = err && err.message ? ` (${err.message})` : '';
   el.textContent = viaFile
     ? '3D 귀신 모델은 파일 더블클릭으로는 로드되지 않습니다. 터미널에서 python3 -m http.server 8080 실행 후 http://localhost:8080/girigo-2400.html 로 접속해 주세요.'
-    : '3D 귀신 모델 로드에 실패해 임시 모델을 표시합니다. models/ghost-walk.fbx 경로를 확인해 주세요.';
+    : `3D 귀신 모델 로드에 실패해 임시 모델을 표시합니다.${detail}`;
   el.style.display = 'block';
 }
 
