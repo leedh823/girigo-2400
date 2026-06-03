@@ -2550,9 +2550,12 @@ const MOVE_SPEED = 0.09;
 const ROT_SPEED  = 0.055;
 const PLAYER_R = 0.32;
 const GHOST_R = 0.28;
-const GHOST_CHASE_SPEED = 0.008;
-const GHOST_WANDER_SPEED_MIN = 0.0025;
-const GHOST_WANDER_SPEED_MAX = 0.0045;
+const GHOST_TARGET_HEIGHT = 1.42 * 1.3;
+const GHOST_CHASE_SPEED = 0.012;
+const GHOST_WANDER_SPEED_MIN = 0.0015;
+const GHOST_WANDER_SPEED_MAX = 0.003;
+const GHOST_ANIM_CHASE = 0.32;
+const GHOST_ANIM_WANDER = 0.24;
 const DOOR_OPEN_DIST = 2.5;
 
 let player       = { x:0, z:-5, angle:0 }; /* angle=0 → +Z(복도) 방향 */
@@ -2659,45 +2662,55 @@ function loadGhostModel() {
   return ghostModelPromise;
 }
 
-function tintGhostMaterial(mat) {
-  const m = mat.clone();
-  if (m.map) {
-    m.map.colorSpace = THREE.SRGBColorSpace;
-    m.map.needsUpdate = true;
+function applyGhostMaterialTint(mat) {
+  if (!mat) return;
+  if (mat.map) {
+    mat.map.colorSpace = THREE.SRGBColorSpace;
+    mat.map.needsUpdate = true;
   }
-  if (!m.emissive) m.emissive = new THREE.Color(0x000000);
-  m.emissiveIntensity = (m.emissiveIntensity ?? 0) + 0.06;
-  m.userData.baseEmissiveIntensity = m.emissiveIntensity;
-  return m;
+  if (!mat.emissive) mat.emissive = new THREE.Color(0x000000);
+  mat.emissiveIntensity = (mat.emissiveIntensity ?? 0) + 0.04;
+  mat.userData.baseEmissiveIntensity = mat.emissiveIntensity;
 }
 
-function prepareGhostModel(root) {
-  root.traverse((child) => {
+function prepareGhostModel(scene) {
+  scene.rotation.set(0, 0, 0);
+
+  scene.traverse((child) => {
     if (child.isLight) {
       child.visible = false;
       return;
     }
     if (!child.isMesh) return;
-    if (Array.isArray(child.material)) {
-      child.material = child.material.map(tintGhostMaterial);
-    } else if (child.material) {
-      child.material = tintGhostMaterial(child.material);
-    }
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach(applyGhostMaterialTint);
     child.castShadow = false;
     child.receiveShadow = false;
-    child.frustumCulled = true;
+    child.frustumCulled = false;
   });
 
-  const box = new THREE.Box3().setFromObject(root);
+  scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(scene);
   const size = box.getSize(new THREE.Vector3());
-  const targetHeight = 1.55;
-  const scale = targetHeight / (size.y || 1);
-  root.scale.setScalar(scale);
-  box.setFromObject(root);
-  root.position.y = -box.min.y;
+  const height = Math.max(size.y, 0.01);
+  const scale = GHOST_TARGET_HEIGHT / height;
 
-  ghostModelTemplate = root;
-  return root;
+  scene.scale.setScalar(scale);
+  scene.updateMatrixWorld(true);
+
+  const box2 = new THREE.Box3().setFromObject(scene);
+  const center = box2.getCenter(new THREE.Vector3());
+  scene.position.set(-center.x, -box2.min.y, -center.z);
+
+  scene.traverse((child) => {
+    if (child.isSkinnedMesh) {
+      if (child.skeleton) child.skeleton.pose();
+      child.updateMatrixWorld(true);
+    }
+  });
+
+  ghostModelTemplate = scene;
+  return scene;
 }
 
 function isGhostRoomActive(g, playerX, playerZ) {
@@ -2758,6 +2771,12 @@ function createGhostEntityFallback(scene, room, phase) {
 function createGhostEntity(scene, room, phase, template) {
   const x = room.cx, z = room.cz;
   const group = window.GhostSkeletonUtils.clone(template);
+  group.traverse((child) => {
+    if (child.isSkinnedMesh) {
+      child.frustumCulled = false;
+      child.updateMatrixWorld(true);
+    }
+  });
   const materials = collectGhostMaterials(group);
 
   let mixer = null;
@@ -2766,6 +2785,7 @@ function createGhostEntity(scene, room, phase, template) {
     mixer = new THREE.AnimationMixer(group);
     const clip = template.animations.find((a) => /walk/i.test(a.name)) || template.animations[0];
     walkAction = mixer.clipAction(clip);
+    walkAction.setLoop(THREE.LoopRepeat, Infinity);
     walkAction.play();
   }
 
@@ -3000,7 +3020,7 @@ function updateGhostPatrol(){
         : 1.4 + Math.sin(threeClockT * 2) * 0.25;
     }
     if (g.walkAction) {
-      g.walkAction.timeScale = g.chasing ? 0.65 : 0.5;
+      g.walkAction.timeScale = g.chasing ? GHOST_ANIM_CHASE : GHOST_ANIM_WANDER;
     }
     if (g.wisp) {
       const em = g.chasing ? 1.4 : 1.0;
