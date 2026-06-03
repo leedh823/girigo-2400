@@ -2651,7 +2651,35 @@ function loadGhostModel() {
   return ghostModelPromise;
 }
 
+function tintGhostMaterial(mat) {
+  const m = mat.clone();
+  if (m.map) {
+    m.map.colorSpace = THREE.SRGBColorSpace;
+    m.map.needsUpdate = true;
+  }
+  if (!m.emissive) m.emissive = new THREE.Color(0x000000);
+  m.emissiveIntensity = (m.emissiveIntensity ?? 0) + 0.06;
+  m.userData.baseEmissiveIntensity = m.emissiveIntensity;
+  return m;
+}
+
 function prepareGhostModel(fbx) {
+  fbx.traverse((child) => {
+    if (child.isLight) {
+      child.visible = false;
+      return;
+    }
+    if (!child.isMesh) return;
+    if (Array.isArray(child.material)) {
+      child.material = child.material.map(tintGhostMaterial);
+    } else if (child.material) {
+      child.material = tintGhostMaterial(child.material);
+    }
+    child.castShadow = false;
+    child.receiveShadow = false;
+    child.frustumCulled = true;
+  });
+
   const box = new THREE.Box3().setFromObject(fbx);
   const size = box.getSize(new THREE.Vector3());
   const targetHeight = 1.55;
@@ -2660,24 +2688,14 @@ function prepareGhostModel(fbx) {
   box.setFromObject(fbx);
   fbx.position.y = -box.min.y;
 
-  fbx.traverse((child) => {
-    if (!child.isMesh) return;
-    child.material = new THREE.MeshStandardMaterial({
-      color: 0xfff0ee,
-      transparent: true,
-      opacity: 0.9,
-      emissive: new THREE.Color(0xff4422),
-      emissiveIntensity: 0.85,
-      metalness: 0,
-      roughness: 0.82,
-      side: THREE.DoubleSide,
-    });
-    child.castShadow = true;
-    child.receiveShadow = false;
-  });
-
   ghostModelTemplate = fbx;
   return fbx;
+}
+
+function isGhostRoomActive(g, playerX, playerZ) {
+  const dx = playerX - g.room.cx;
+  const dz = playerZ - g.room.cz;
+  return dx * dx + dz * dz < 24 * 24 || isInClassroom(playerX, playerZ, g.room);
 }
 
 function collectGhostMaterials(root) {
@@ -2732,11 +2750,7 @@ function createGhostEntityFallback(scene, room, phase) {
 function createGhostEntity(scene, room, phase, template) {
   const x = room.cx, z = room.cz;
   const group = window.GhostSkeletonUtils.clone(template);
-
   const materials = collectGhostMaterials(group);
-  const light = new THREE.PointLight(0xff4422, 1.4, 11);
-  light.position.y = 1.15;
-  group.add(light);
 
   let mixer = null;
   let walkAction = null;
@@ -2748,10 +2762,11 @@ function createGhostEntity(scene, room, phase, template) {
   }
 
   group.position.set(x, 0, z);
+  group.visible = false;
   scene.add(group);
   return {
     x, z, phase, room,
-    group, light, materials, mixer, walkAction,
+    group, light: null, materials, mixer, walkAction,
     wisp: null,
     chasing: false,
     angle: Math.random() * Math.PI * 2,
@@ -2894,10 +2909,17 @@ function updateMovement(){
 /* ─── 귀신 AI (교실 내만 배회, 입장 시 추적) ─── */
 function updateGhostPatrol(){
   if(G.gameOver||mazeExiting||!ghosts.length) return;
-  const cam=threeApp&&threeApp.camera;
   for(let i=0;i<ghosts.length;i++){
     const g=ghosts[i];
     const room=g.room;
+    const active=isGhostRoomActive(g, player.x, player.z);
+    g.group.visible=active;
+    if(!active){
+      if(g.walkAction) g.walkAction.paused=true;
+      continue;
+    }
+    if(g.walkAction) g.walkAction.paused=false;
+
     const playerInside=isInClassroom(player.x,player.z,room);
 
     if(playerInside){
@@ -2928,16 +2950,15 @@ function updateGhostPatrol(){
       }
     }
 
-    const bob = g.mixer ? 0 : 0.72 + Math.sin(threeClockT * 2.2 + g.phase) * 0.2;
-    g.group.position.set(g.x, bob, g.z);
+    g.group.position.set(g.x, 0, g.z);
     g.group.rotation.y = g.angle;
 
     const pulse = 0.9 + Math.sin(threeClockT * 3 + g.phase) * 0.1;
-    const emissive = g.chasing ? 1.55 * pulse : 1.0 * pulse;
     if (g.materials) {
       g.materials.forEach((mat) => {
-        if (mat.emissiveIntensity !== undefined) mat.emissiveIntensity = emissive;
-        if (mat.opacity !== undefined && !g.mixer) mat.opacity = 1;
+        if (mat.emissiveIntensity === undefined) return;
+        const base = mat.userData.baseEmissiveIntensity ?? 0.06;
+        mat.emissiveIntensity = g.chasing ? base + 0.18 * pulse : base;
       });
     }
     if (g.light) {
@@ -2946,10 +2967,11 @@ function updateGhostPatrol(){
         : 1.4 + Math.sin(threeClockT * 2) * 0.25;
     }
     if (g.walkAction) {
-      g.walkAction.timeScale = g.chasing ? 1.35 : 0.75;
+      g.walkAction.timeScale = g.chasing ? 1.25 : 0.85;
     }
     if (g.wisp) {
-      if (g.wisp.material) g.wisp.material.emissiveIntensity = emissive;
+      const em = g.chasing ? 1.4 : 1.0;
+      if (g.wisp.material) g.wisp.material.emissiveIntensity = em;
       g.wisp.rotation.z = Math.sin(threeClockT * 1.6 + g.phase) * 0.15;
     }
 
@@ -3052,7 +3074,9 @@ function mazeLoop(){
   mazeAnimFrame=requestAnimationFrame(mazeLoop);
   threeClockT+=.022;
   const animDelta = 0.033;
-  ghosts.forEach((g) => { if (g.mixer) g.mixer.update(animDelta); });
+  ghosts.forEach((g) => {
+    if (g.mixer && g.group.visible) g.mixer.update(animDelta);
+  });
   updateMovement(); updateDoors(); updateGhostPatrol();
   const cam=threeApp.camera;
   cam.position.set(player.x,EYE_H,player.z);
@@ -3168,14 +3192,14 @@ function initMaze(){
     renderer=threeApp.renderer;
     renderer.setSize(W,H);
   } else {
-    renderer=new THREE.WebGLRenderer({canvas:mazeCanvas,antialias:true});
+    renderer=new THREE.WebGLRenderer({canvas:mazeCanvas,antialias:true,powerPreference:'high-performance'});
     renderer.setSize(W,H);
-    renderer.shadowMap.enabled=true;
+    renderer.shadowMap.enabled=false;
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure=0.88;
   }
   renderer.setClearColor(0x06060a,1);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 
   scene=new THREE.Scene();
   scene.background=new THREE.Color(0x1e1e1c);
