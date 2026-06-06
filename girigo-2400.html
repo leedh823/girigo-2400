@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>기리고 : 24:00</title>
+<link rel="icon" href="assets/girigo-hands.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Serif+KR:wght@300;400&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
 
@@ -402,8 +403,18 @@ html, body {
   0%,100%{ box-shadow: 0 3px 14px rgba(0,0,0,0.55), 0 0 12px rgba(200,56,42,0.12), inset 0 1px 0 rgba(255,255,255,0.09); }
   50%    { box-shadow: 0 3px 14px rgba(0,0,0,0.55), 0 0 24px rgba(200,56,42,0.3),  inset 0 1px 0 rgba(255,255,255,0.09); }
 }
-#cell-girigo .app-icon-box svg { width: 28px; height: 28px; }
+#cell-girigo .app-icon-box .girigo-hand-logo { width: 28px; height: 28px; }
 #cell-girigo .app-cell-label { color: rgba(255,255,255,0.88); font-weight: 700; }
+
+/* 기리고 손 로고 (픽셀 아트) */
+.girigo-hand-logo {
+  display: block;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  pointer-events: none;
+  user-select: none;
+}
 
 /* 독 */
 .home-dock {
@@ -482,7 +493,7 @@ html, body {
   from { transform: scale(0.7); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
 }
-.splash-icon svg { width: 38px; height: 38px; }
+.splash-icon .girigo-hand-logo { width: 44px; height: 44px; }
 
 .splash-title {
   font-family: 'Black Han Sans', sans-serif;
@@ -602,7 +613,7 @@ html, body {
   0%,100%{box-shadow:0 0 20px rgba(200,56,42,0.2)}
   50%    {box-shadow:0 0 40px rgba(200,56,42,0.45)}
 }
-#scene-0 .app-icon svg { width: 40px; height: 40px; }
+#scene-0 .app-icon .girigo-hand-logo { width: 44px; height: 44px; }
 #scene-0 .app-name {
   font-family: 'Black Han Sans', sans-serif;
   font-size: 28px; color: var(--text); letter-spacing: 6px;
@@ -678,6 +689,11 @@ html, body {
   background: rgba(200,56,42,0);
   pointer-events: none; transition: background 0.3s; z-index: 1;
 }
+#scene-1 .logo-mark {
+  margin-bottom: 10px;
+  position: relative; z-index: 2;
+}
+#scene-1 .logo-mark .girigo-hand-logo { width: 52px; height: 52px; margin: 0 auto; }
 #scene-1 .logo {
   font-family: 'Black Han Sans', sans-serif;
   font-size: 22px; color: var(--text); letter-spacing: 4px; margin-bottom: 8px;
@@ -1024,7 +1040,7 @@ html, body {
   margin-bottom: 18px; line-height: 0;
   animation: blink 0.8s step-end infinite;
 }
-#caught-overlay .caught-icon svg { display: block; }
+#caught-overlay .caught-icon .girigo-hand-logo { width: 56px; height: 56px; }
 #caught-overlay .caught-title {
   font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 700;
   color: var(--accent-red); letter-spacing: 3px; margin-bottom: 20px;
@@ -1291,15 +1307,7 @@ html, body {
           <!-- 기리고 앱 — 그리드 안에 자연스럽게 배치 -->
           <div class="app-cell" id="cell-girigo" onclick="tapGirigoIcon()">
             <div class="app-icon-box">
-              <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="18" stroke="#c8382a" stroke-width="1.5" opacity="0.6"/>
-                <path d="M22 6.2V10.5" stroke="#ff6650" stroke-width="1.3" stroke-linecap="round" opacity="0.78"/>
-                <path d="M17.2 8.4L15 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
-                <path d="M26.8 8.4L29 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
-                <path d="M22 12.4L18.4 15.2C16.6 17.2 16 22.8 16.8 27.8L19.4 31.2L22 29.6L24.6 31.2L27.2 27.8C28 22.8 27.4 17.2 25.6 15.2L22 12.4Z" stroke="#c8382a" stroke-width="1.65" stroke-linejoin="round"/>
-                <path d="M22 13.2V29.2" stroke="#c8382a" stroke-width="1" stroke-linecap="round" opacity="0.52"/>
-                <path d="M17.4 31.4Q22 33.6 26.6 31.4" stroke="#c8382a" stroke-width="1.15" stroke-linecap="round" opacity="0.62"/>
-              </svg>
+              <img class="girigo-hand-logo" src="assets/girigo-hands.png" alt="" aria-hidden="true">
             </div>
             <span class="app-cell-label">기리고</span>
           </div>
@@ -1368,15 +1376,7 @@ html, body {
       <!-- 앱 내부 로딩 스플래시 -->
       <div id="app-splash">
         <div class="splash-icon">
-          <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="22" cy="22" r="18" stroke="#c8382a" stroke-width="1.5" opacity="0.6"/>
-            <path d="M22 6.2V10.5" stroke="#ff6650" stroke-width="1.3" stroke-linecap="round" opacity="0.78"/>
-            <path d="M17.2 8.4L15 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
-            <path d="M26.8 8.4L29 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
-            <path d="M22 12.4L18.4 15.2C16.6 17.2 16 22.8 16.8 27.8L19.4 31.2L22 29.6L24.6 31.2L27.2 27.8C28 22.8 27.4 17.2 25.6 15.2L22 12.4Z" stroke="#c8382a" stroke-width="1.65" stroke-linejoin="round"/>
-            <path d="M22 13.2V29.2" stroke="#c8382a" stroke-width="1" stroke-linecap="round" opacity="0.52"/>
-            <path d="M17.4 31.4Q22 33.6 26.6 31.4" stroke="#c8382a" stroke-width="1.15" stroke-linecap="round" opacity="0.62"/>
-          </svg>
+          <img class="girigo-hand-logo" src="assets/girigo-hands.png" alt="" aria-hidden="true">
         </div>
         <div class="splash-title">기리고</div>
         <div class="splash-sub">祈禱 · GIRIGO</div>
@@ -1389,15 +1389,7 @@ html, body {
     <div id="scene-0" class="scene active">
       <div class="scanlines"></div>
       <div class="app-icon">
-        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="22" cy="22" r="18" stroke="#c8382a" stroke-width="1.5" opacity="0.6"/>
-          <path d="M22 6.2V10.5" stroke="#ff6650" stroke-width="1.3" stroke-linecap="round" opacity="0.78"/>
-          <path d="M17.2 8.4L15 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
-          <path d="M26.8 8.4L29 4.8" stroke="#c8382a" stroke-width="1.1" stroke-linecap="round" opacity="0.48"/>
-          <path d="M22 12.4L18.4 15.2C16.6 17.2 16 22.8 16.8 27.8L19.4 31.2L22 29.6L24.6 31.2L27.2 27.8C28 22.8 27.4 17.2 25.6 15.2L22 12.4Z" stroke="#c8382a" stroke-width="1.65" stroke-linejoin="round"/>
-          <path d="M22 13.2V29.2" stroke="#c8382a" stroke-width="1" stroke-linecap="round" opacity="0.52"/>
-          <path d="M17.4 31.4Q22 33.6 26.6 31.4" stroke="#c8382a" stroke-width="1.15" stroke-linecap="round" opacity="0.62"/>
-        </svg>
+        <img class="girigo-hand-logo" src="assets/girigo-hands.png" alt="" aria-hidden="true">
       </div>
       <div class="app-name">기리고</div>
       <div class="app-name-sub">祈禱 · GIRIGO</div>
@@ -1431,6 +1423,9 @@ html, body {
             <rect x="2" y="2" width="16" height="8" rx="2" fill="rgba(232,224,213,0.82)"/>
           </svg>
         </span>
+      </div>
+      <div class="logo-mark">
+        <img class="girigo-hand-logo" src="assets/girigo-hands.png" alt="" aria-hidden="true">
       </div>
       <div class="logo">기리고</div>
       <div class="logo-sub">소원을 들어드립니다</div>
@@ -1506,22 +1501,7 @@ html, body {
       <!-- 귀신 발각 오버레이 -->
       <div id="caught-overlay">
         <div class="caught-icon">
-          <svg viewBox="0 0 48 48" width="48" height="48" fill="none" aria-hidden="true">
-            <path d="M24 10.5C15.5 14.5 11.5 20 11.5 24c0 4.2 4.2 9.8 12.5 13.5C32.3 33.8 36.5 28.2 36.5 24S32.3 14.5 24 10.5z" stroke="#c8382a" stroke-width="1.5" stroke-linejoin="round"/>
-            <line x1="32" y1="24" x2="36" y2="24" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
-            <line x1="28" y1="30.9" x2="30" y2="34.4" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
-            <line x1="20" y1="30.9" x2="18" y2="34.4" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
-            <line x1="16" y1="24" x2="12" y2="24" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
-            <line x1="20" y1="17.1" x2="18" y2="13.6" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
-            <line x1="28" y1="17.1" x2="30" y2="13.6" stroke="#c8382a" stroke-width="0.8" opacity="0.5" stroke-linecap="round"/>
-            <circle cx="24" cy="24" r="7" fill="rgba(200,56,42,0.85)"/>
-            <line x1="18" y1="14" x2="17" y2="11" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
-            <line x1="24" y1="11.5" x2="24" y2="8.5" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
-            <line x1="30" y1="14" x2="31" y2="11" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
-            <line x1="18" y1="34" x2="17" y2="37" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
-            <line x1="24" y1="36.5" x2="24" y2="39.5" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
-            <line x1="30" y1="34" x2="31" y2="37" stroke="#c8382a" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
-          </svg>
+          <img class="girigo-hand-logo" src="assets/girigo-hands.png" alt="" aria-hidden="true">
         </div>
         <div class="caught-title">발각되었습니다</div>
         <div class="caught-sub">귀신이 당신을 발견했습니다.<br>당신의 영혼은 기리고의 일부가 되었습니다.</div>
@@ -2550,8 +2530,8 @@ const MOVE_SPEED = 0.09;
 const ROT_SPEED  = 0.055;
 const PLAYER_R = 0.32;
 const GHOST_R = 0.28;
-const GHOST_TARGET_HEIGHT = 1.42 * 1.3;
-const GHOST_CHASE_SPEED = 0.012;
+const GHOST_TARGET_HEIGHT = 1.68;
+const GHOST_CHASE_SPEED = 0.018;
 const GHOST_WANDER_SPEED_MIN = 0.0015;
 const GHOST_WANDER_SPEED_MAX = 0.003;
 const GHOST_ANIM_CHASE = 0.32;
